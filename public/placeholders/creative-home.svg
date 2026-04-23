@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Creative home placeholder">
+  <rect width="640" height="420" fill="#87c886"/>
+  <rect y="310" width="640" height="110" fill="#6f985b"/>
+  <rect x="250" y="180" width="185" height="135" fill="#b8684b" stroke="#2f2530" stroke-width="10"/>
+  <path d="M220 185 342 100 465 185Z" fill="#8f3f3a" stroke="#2f2530" stroke-width="10"/>
+  <rect x="320" y="255" width="48" height="60" fill="#e4c66d" stroke="#2f2530" stroke-width="8"/>
+  <rect x="80" y="215" width="80" height="65" fill="#fff8dc" stroke="#2f2530" stroke-width="8"/>
+  <rect x="112" y="280" width="10" height="60" fill="#2f2530"/>
+</svg>

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Creative badges placeholder">
+  <rect width="640" height="420" fill="#f7e8b4"/>
+  <rect x="105" y="80" width="120" height="120" fill="#e4c66d" stroke="#2f2530" stroke-width="10"/>
+  <rect x="260" y="80" width="120" height="120" fill="#9bd4d8" stroke="#2f2530" stroke-width="10"/>
+  <rect x="415" y="80" width="120" height="120" fill="#b8684b" stroke="#2f2530" stroke-width="10"/>
+  <rect x="105" y="235" width="120" height="120" fill="#b6cf7a" stroke="#2f2530" stroke-width="10"/>
+  <rect x="260" y="235" width="120" height="120" fill="#fff8dc" stroke="#2f2530" stroke-width="10"/>
+  <rect x="415" y="235" width="120" height="120" fill="#48664a" stroke="#2f2530" stroke-width="10"/>
+</svg>

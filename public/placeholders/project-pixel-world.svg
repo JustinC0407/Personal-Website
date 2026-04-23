@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Pixel world project placeholder">
+  <rect width="640" height="360" fill="#9bd4d8"/>
+  <rect y="250" width="640" height="110" fill="#6f985b"/>
+  <rect x="360" y="130" width="170" height="130" fill="#b8684b" stroke="#2f2530" stroke-width="10"/>
+  <path d="M340 135 445 70 550 135Z" fill="#8f3f3a" stroke="#2f2530" stroke-width="10"/>
+  <rect x="425" y="205" width="45" height="55" fill="#e4c66d" stroke="#2f2530" stroke-width="8"/>
+  <rect x="130" y="175" width="75" height="55" fill="#fff8dc" stroke="#2f2530" stroke-width="8"/>
+  <rect x="160" y="230" width="12" height="55" fill="#2f2530"/>
+  <rect x="245" y="275" width="42" height="42" fill="#3b6fb6" stroke="#2f2530" stroke-width="8"/>
+</svg>

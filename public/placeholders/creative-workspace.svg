@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 420" role="img" aria-label="Creative workspace placeholder">
+  <rect width="640" height="420" fill="#d79d68"/>
+  <rect width="640" height="95" fill="#a65d48"/>
+  <rect y="330" width="640" height="90" fill="#b97855"/>
+  <rect x="105" y="160" width="190" height="92" fill="#8c5c3e" stroke="#2f2530" stroke-width="9"/>
+  <rect x="142" y="96" width="110" height="86" fill="#273048" stroke="#2f2530" stroke-width="8"/>
+  <rect x="420" y="130" width="120" height="160" fill="#fff8dc" stroke="#2f2530" stroke-width="9"/>
+  <rect x="448" y="160" width="68" height="75" fill="#9bd4d8" stroke="#2f2530" stroke-width="7"/>
+</svg>

@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-display: var(--font-boldhu), "Courier New", serif;
+  --font-body: var(--font-item), ui-sans-serif, system-ui, sans-serif;
+  --pixel-border: #2f2530;
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-width: 320px;
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background:
+    linear-gradient(90deg, rgba(47, 37, 48, 0.04) 1px, transparent 1px),
+    linear-gradient(rgba(47, 37, 48, 0.04) 1px, transparent 1px),
+    #f6e8b8;
+  background-size: 18px 18px;
+  color: #2f2530;
+  font-family: var(--font-body);
+  image-rendering: pixelated;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+::selection {
+  background: #b6cf7a;
+  color: #2f2530;
+}
+
+.pixel-border {
+  border: 3px solid var(--pixel-border);
+  box-shadow: 5px 5px 0 #6b4a42;
+}
+
+.pixel-panel {
+  border: 3px solid var(--pixel-border);
+  background: #fff8dc;
+  box-shadow: 6px 6px 0 #6b4a42;
+}
+
+.pixel-button {
+  border: 3px solid var(--pixel-border);
+  background: #e4c66d;
+  box-shadow: 4px 4px 0 #6b4a42;
+  color: #2f2530;
+  font-family: var(--font-display);
+  font-weight: 800;
+  transition:
+    transform 120ms ease,
+    box-shadow 120ms ease,
+    background-color 120ms ease;
+}
+
+.pixel-button:hover,
+.pixel-button:focus-visible {
+  background: #f3d77f;
+  box-shadow: 2px 2px 0 #6b4a42;
+  transform: translate(2px, 2px);
+}
+
+.pixel-button:focus-visible,
+a:focus-visible,
+button:focus-visible {
+  outline: 3px solid #2f6f80;
+  outline-offset: 3px;
+}
+
+.scanline {
+  background-image: linear-gradient(rgba(255, 255, 255, 0.12) 50%, rgba(47, 37, 48, 0.05) 50%);
+  background-size: 100% 6px;
+}
+
+.start-clouds-bg {
+  --cloud-width: max(220vw, 356vh);
+
+  overflow: hidden;
+  pointer-events: none;
+  background-color: #62bee8;
+}
+
+.start-clouds-strip {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  width: calc(var(--cloud-width) * 4);
+  animation: start-cloud-drift 90s linear infinite;
+  will-change: transform;
+}
+
+.start-clouds-panel {
+  flex: 0 0 var(--cloud-width);
+  background-image: url("/art/start-clouds.png");
+  background-position: center bottom;
+  background-repeat: no-repeat;
+  background-size: 100% 200%;
+  animation: start-cloud-reveal 2s ease-out forwards;
+}
+
+.start-clouds-panel-reversed {
+  transform: scaleX(-1);
+}
+
+.start-mountains-intro {
+  animation: start-layer-rise 2s ease-out forwards;
+  transform: translateY(100vh);
+  will-change: transform;
+}
+
+.start-sign-intro {
+  animation: start-layer-rise 2s linear 1.25s forwards;
+  transform: translateY(100vh);
+  will-change: transform;
+}
+
+@keyframes start-cloud-reveal {
+  from {
+    background-position: center top;
+  }
+
+  to {
+    background-position: center bottom;
+  }
+}
+
+@keyframes start-layer-rise {
+  from {
+    transform: translateY(100vh);
+  }
+
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes start-cloud-drift {
+  from {
+    transform: translateX(calc(-2 * var(--cloud-width)));
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.game-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  border: 4px solid #5f2f20;
+  background: #fff0b9;
+  padding: 1rem;
+  color: #5f2f20;
+  font-family: var(--font-body);
+  font-size: 1.5rem;
+  font-weight: 900;
+  line-height: 1;
+  box-shadow: 0 5px 0 #9a4f2f;
+  transition:
+    transform 120ms ease,
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+
+.game-menu-item:hover,
+.game-menu-item:focus-visible {
+  background: #f7d891;
+  box-shadow: 0 7px 0 #9a4f2f;
+  transform: translateY(-2px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .start-clouds-strip,
+  .start-clouds-panel,
+  .start-mountains-intro,
+  .start-sign-intro {
+    animation: none;
+  }
+
+  .start-mountains-intro,
+  .start-sign-intro {
+    transform: translateY(0);
+  }
+
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}

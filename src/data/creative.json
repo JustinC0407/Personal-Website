@@ -1,0 +1,32 @@
+[
+  {
+    "id": "pixel-home",
+    "slug": "pixel-home",
+    "title": "Pixel Home Base",
+    "medium": "Pixel art concept",
+    "year": "2026",
+    "thumbnail": "/placeholders/creative-home.svg",
+    "images": ["/placeholders/creative-home.svg"],
+    "description": "A placeholder concept for the outside world scene: a compact home base with a signpost, mailbox, and path to the door."
+  },
+  {
+    "id": "workspace-study",
+    "slug": "workspace-study",
+    "title": "Workspace Study",
+    "medium": "Digital sketch",
+    "year": "2026",
+    "thumbnail": "/placeholders/creative-workspace.svg",
+    "images": ["/placeholders/creative-workspace.svg"],
+    "description": "A placeholder interior composition for a personal workspace with a desk, computer, easel, and a door back outside."
+  },
+  {
+    "id": "interface-badges",
+    "slug": "interface-badges",
+    "title": "Interface Badges",
+    "medium": "UI asset exploration",
+    "year": "2026",
+    "thumbnail": "/placeholders/creative-badges.svg",
+    "images": ["/placeholders/creative-badges.svg"],
+    "description": "Small visual motifs for buttons, labels, and portfolio achievements that can later become a richer visual system."
+  }
+]

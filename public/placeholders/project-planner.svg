@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 360" role="img" aria-label="Planner project placeholder">
+  <rect width="640" height="360" fill="#b6cf7a"/>
+  <rect x="70" y="48" width="500" height="264" fill="#fff8dc" stroke="#2f2530" stroke-width="10"/>
+  <rect x="95" y="82" width="450" height="38" fill="#e4c66d" stroke="#2f2530" stroke-width="6"/>
+  <rect x="95" y="145" width="125" height="125" fill="#9bd4d8" stroke="#2f2530" stroke-width="7"/>
+  <rect x="258" y="145" width="125" height="125" fill="#f7e8b4" stroke="#2f2530" stroke-width="7"/>
+  <rect x="420" y="145" width="125" height="125" fill="#b8684b" stroke="#2f2530" stroke-width="7"/>
+</svg>

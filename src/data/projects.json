@@ -1,0 +1,53 @@
+[
+  {
+    "id": "world-portfolio",
+    "slug": "world-portfolio",
+    "title": "Pixel-World Portfolio",
+    "shortDescription": "A recruiter-friendly portfolio with an optional explorable pixel world.",
+    "longDescription": "This site combines direct portfolio navigation with a compact interactive world. The implementation emphasizes JSON-driven content, simple collision rectangles, and placeholder-first visual development so final art can be swapped in later.",
+    "whyItMatters": "It demonstrates product thinking, frontend architecture, accessibility, and creative interaction design without blocking recruiters from the core content.",
+    "tech": ["Next.js", "TypeScript", "Tailwind CSS", "Framer Motion"],
+    "thumbnail": "/placeholders/project-pixel-world.svg",
+    "featured": true,
+    "links": {
+      "github": "https://github.com/",
+      "demo": "",
+      "website": "",
+      "caseStudy": ""
+    }
+  },
+  {
+    "id": "ops-dashboard",
+    "slug": "ops-dashboard",
+    "title": "Operations Dashboard",
+    "shortDescription": "A placeholder SaaS dashboard focused on scanning, filtering, and action workflows.",
+    "longDescription": "A structured dashboard concept for tracking operational metrics, reviewing records, and moving from summary views to detail actions quickly.",
+    "whyItMatters": "It shows how dense information can stay readable when the layout, hierarchy, and interaction patterns are carefully designed.",
+    "tech": ["React", "TypeScript", "Charts", "API Design"],
+    "thumbnail": "/placeholders/project-dashboard.svg",
+    "featured": true,
+    "links": {
+      "github": "https://github.com/",
+      "demo": "",
+      "website": "",
+      "caseStudy": ""
+    }
+  },
+  {
+    "id": "study-planner",
+    "slug": "study-planner",
+    "title": "Study Planner",
+    "shortDescription": "A planning tool concept for deadlines, priorities, and weekly focus.",
+    "longDescription": "A student-oriented productivity app concept that organizes upcoming work into a practical weekly plan with emphasis on clarity and low-friction editing.",
+    "whyItMatters": "It highlights pragmatic product design: small workflows, clear states, and data structures that are easy to extend.",
+    "tech": ["Next.js", "Forms", "Local Data", "UX Design"],
+    "thumbnail": "/placeholders/project-planner.svg",
+    "featured": false,
+    "links": {
+      "github": "https://github.com/",
+      "demo": "",
+      "website": "",
+      "caseStudy": ""
+    }
+  }
+]

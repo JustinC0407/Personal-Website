@@ -1,0 +1,41 @@
+Pixel-World Portfolio Update
+
+Completed work
+- Scaffolded a Next.js, TypeScript, and Tailwind portfolio app from the README brief.
+- Added JSON-driven content for about, skills/education, projects, creative work, contact, and world scenes.
+- Built standalone portfolio routes for About, Skills/Education, Projects, Creative, Contact, and detail pages.
+- Redesigned the homepage into a Stardew-inspired title screen with the custom fonts:
+  - svboldhu.ttf for large/title text.
+  - stardew-item-font.ttf for smaller UI/body text.
+- Hid the normal navbar on the homepage and world page.
+- Converted homepage shortcut buttons into large in-page popups instead of navigating away.
+- Built a shared PortfolioModal component used by both the homepage and world mode.
+- Rebuilt /world as a full-screen game-style scene instead of a boxed console.
+- Added smooth requestAnimationFrame-based movement with WASD/arrow controls.
+- Removed desktop click-to-move.
+- Added mobile drag-anywhere movement.
+- Added hard-centered camera follow with map-edge clamping.
+- Added in-world hamburger menu, back-to-start button, proximity prompts, and debug toggle.
+- Added world zoom controls under the scene label in the top-right corner.
+- Changed world hotspots so About, Projects, Creative, and Contact open full-screen popups instead of routing away.
+- Kept house door/exit hotspots as scene transitions.
+- Fixed extension-caused hydration warning on the root body.
+- Fixed modal scrolling so content scrolls below the header instead of sliding behind it.
+- Fixed the homepage height after navbar removal so the global background grid no longer shows at the bottom.
+
+Recent verification
+- npm run lint passed after the shared modal and world updates.
+- npm run typecheck passed after the latest homepage height fix.
+- Production build was previously verified before the latest small UI tweaks, but the user asked not to run build every time.
+
+Still to do
+- Replace placeholder CSS/block world art with final custom pixel sprites and backgrounds.
+- Replace placeholder portfolio content with real projects, education, links, resume, and contact info.
+- Improve the player character from a blue JC block into a proper sprite or sprite sheet.
+- Add walking direction/animation frames once sprite art exists.
+- Tune world collision and hotspot rectangles after final art is added.
+- Improve mobile drag controls with visual feedback if desired.
+- Add richer project/creative screenshots once assets are available.
+- Decide whether standalone route pages should remain visible in the normal navbar for non-home pages or become secondary/fallback only.
+- Add accessibility refinements for modal focus trapping and keyboard focus restoration.
+- Optionally add audio/settings controls later if the portfolio needs more game-like polish.

@@ -1,0 +1,16 @@
+{
+  "name": "Justin Chen",
+  "title": "Software engineer building practical tools with a creative edge",
+  "avatar": "/placeholders/avatar.png",
+  "bio": [
+    "I like turning messy ideas into focused, usable software. This portfolio is built around that same idea: direct access for recruiters, plus a small interactive world for visitors who want something more memorable.",
+    "My work leans toward full-stack product engineering, thoughtful interfaces, and systems that stay maintainable after the first version ships."
+  ],
+  "highlights": [
+    "Full-stack web development",
+    "Interactive UI and product prototyping",
+    "Data-driven app architecture",
+    "Creative technical storytelling"
+  ],
+  "interests": ["developer tools", "web animation", "game-inspired interfaces", "AI-assisted workflows"]
+}

@@ -1,0 +1,30 @@
+{
+  "education": [
+    {
+      "school": "University / Program Name",
+      "degree": "Degree or concentration",
+      "period": "Expected graduation or completion date",
+      "details": "Replace this entry with current education, honors, or relevant academic focus."
+    }
+  ],
+  "skills": [
+    {
+      "category": "Languages",
+      "items": ["TypeScript", "JavaScript", "Python", "SQL"]
+    },
+    {
+      "category": "Frontend",
+      "items": ["React", "Next.js", "Tailwind CSS", "Responsive UI"]
+    },
+    {
+      "category": "Backend",
+      "items": ["Node.js", "REST APIs", "PostgreSQL", "Authentication"]
+    },
+    {
+      "category": "Tools",
+      "items": ["Git", "Vercel", "Figma", "Framer Motion"]
+    }
+  ],
+  "coursework": ["Data Structures", "Algorithms", "Databases", "Software Engineering", "Human-Computer Interaction"],
+  "focusAreas": ["Product-minded engineering", "Accessible UI", "Interactive web experiences", "Reliable implementation"]
+}
