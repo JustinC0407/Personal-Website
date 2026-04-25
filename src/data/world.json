@@ -1,7 +1,7 @@
 {
   "sceneSize": {
-    "width": 1800,
-    "height": 1200
+    "width": 1600,
+    "height": 900
   },
   "scenes": [
     {
@@ -9,28 +9,41 @@
       "name": "Front Yard",
       "background": "",
       "spawn": {
-        "x": 860,
-        "y": 805
+        "x": 764,
+        "y": 604
       },
       "collisions": [
-        { "id": "north-tree-line", "x": 0, "y": 0, "width": 1800, "height": 120 },
-        { "id": "west-tree-line", "x": 0, "y": 0, "width": 150, "height": 1200 },
-        { "id": "east-tree-line", "x": 1650, "y": 0, "width": 150, "height": 1200 },
-        { "id": "south-fence", "x": 0, "y": 1120, "width": 1800, "height": 80 },
-        { "id": "house-body", "x": 940, "y": 275, "width": 430, "height": 300 },
-        { "id": "pond", "x": 265, "y": 660, "width": 260, "height": 165 },
-        { "id": "garden-left", "x": 590, "y": 900, "width": 240, "height": 130 },
-        { "id": "garden-right", "x": 1010, "y": 900, "width": 260, "height": 130 }
+        { "id": "north-blossom-line", "shape": "rect", "x": 0, "y": 0, "width": 1600, "height": 28 },
+        { "id": "west-blossom-line", "shape": "rect", "x": 0, "y": 0, "width": 24, "height": 900 },
+        { "id": "east-blossom-line", "shape": "rect", "x": 1576, "y": 0, "width": 24, "height": 900 },
+        { "id": "south-blossom-line", "shape": "rect", "x": 0, "y": 876, "width": 1600, "height": 24 },
+        { "id": "house-upper-body", "shape": "ellipse", "cx": 1050, "cy": 200, "rx": 175, "ry": 100 },
+        { "id": "bridge-tree-roots", "shape": "rect", "x": 82, "y": 536, "width": 104, "height": 110 },
+        { "id": "center-tree-roots", "shape": "rect", "x": 586, "y": 325, "width": 92, "height": 60},
+        { "id": "house-tree-roots", "shape": "ellipse", "cx": 1455, "cy": 476, "rx": 50, "ry": 30 },
+        { "id": "house-2-tree-roots", "shape": "ellipse", "cx": 1555, "cy": 310, "rx": 30, "ry": 30 },
+        { "id": "house-3-tree-roots", "shape": "ellipse", "cx": 1375, "cy": 160, "rx": 40, "ry": 30 },
+        { "id": "house-left-tree-roots", "shape": "ellipse", "cx": 775, "cy": 140, "rx": 40, "ry": 30 },
+        { "id": "left-up-tree-roots", "shape": "ellipse", "cx": 170, "cy": 160, "rx": 40, "ry": 10 },
+        { "id": "lower-left-tree-roots", "shape": "rect", "x": 104, "y": 734, "width": 86, "height": 110 },
+        { "id": "upper-lake", "shape": "ellipse", "cx": 486, "cy": 252, "rx": 154, "ry": 38 },
+        { "id": "lower-lake", "shape": "ellipse", "cx": 355, "cy": 530, "rx": 160, "ry": 160 },
+        { "id": "right-tulip-bed", "shape": "rect", "x": 942, "y": 420, "width": 384, "height": 250 },
+        { "id": "lower-tulip-strip", "shape": "rect", "x": 596, "y": 548, "width": 104, "height": 206 }
+      ],
+      "depthZones": [
+        { "id": "house-front-path", "x": 882, "y": 292, "width": 370, "height": 160 },
+        { "id": "house-front-path", "x": 132, "y": 160, "width": 80, "height": 80 }
       ],
       "hotspots": [
         {
           "id": "signpost",
           "label": "About + Skills",
           "description": "Read the profile panel, education, skills, and focus areas.",
-          "x": 625,
-          "y": 570,
-          "width": 150,
-          "height": 145,
+          "x": 938,
+          "y": 338,
+          "width": 56,
+          "height": 56,
           "contentType": "about",
           "actionLabel": "View About + Skills"
         },
@@ -38,10 +51,10 @@
           "id": "mailbox",
           "label": "Contact / Resume",
           "description": "Find email, LinkedIn, GitHub, and resume access.",
-          "x": 1245,
-          "y": 665,
-          "width": 155,
-          "height": 130,
+          "x": 1134,
+          "y": 334,
+          "width": 56,
+          "height": 56,
           "contentType": "contact",
           "actionLabel": "Open Resume"
         },
@@ -49,10 +62,10 @@
           "id": "door",
           "label": "Enter House",
           "description": "Step inside the workspace scene.",
-          "x": 1070,
-          "y": 525,
-          "width": 160,
-          "height": 135,
+          "x": 1012,
+          "y": 216,
+          "width": 104,
+          "height": 110,
           "targetScene": "inside",
           "actionLabel": "Enter House"
         }
@@ -63,27 +76,28 @@
       "name": "Workspace",
       "background": "",
       "spawn": {
-        "x": 890,
-        "y": 850
+        "x": 791,
+        "y": 638
       },
       "collisions": [
-        { "id": "north-wall", "x": 0, "y": 0, "width": 1800, "height": 150 },
-        { "id": "west-wall", "x": 0, "y": 0, "width": 150, "height": 1200 },
-        { "id": "east-wall", "x": 1650, "y": 0, "width": 150, "height": 1200 },
-        { "id": "desk", "x": 360, "y": 250, "width": 390, "height": 220 },
-        { "id": "easel", "x": 1160, "y": 230, "width": 260, "height": 320 },
-        { "id": "bookcase", "x": 190, "y": 230, "width": 140, "height": 420 },
-        { "id": "rug-table", "x": 780, "y": 555, "width": 250, "height": 165 }
+        { "id": "north-wall", "shape": "rect", "x": 0, "y": 0, "width": 1600, "height": 113 },
+        { "id": "west-wall", "shape": "rect", "x": 0, "y": 0, "width": 133, "height": 900 },
+        { "id": "east-wall", "shape": "rect", "x": 1467, "y": 0, "width": 133, "height": 900 },
+        { "id": "desk", "shape": "rect", "x": 320, "y": 188, "width": 347, "height": 165 },
+        { "id": "easel", "shape": "rect", "x": 1031, "y": 173, "width": 231, "height": 240 },
+        { "id": "bookcase", "shape": "rect", "x": 169, "y": 173, "width": 124, "height": 315 },
+        { "id": "rug-table", "shape": "rect", "x": 693, "y": 416, "width": 222, "height": 124 }
       ],
+      "depthZones": [],
       "hotspots": [
         {
           "id": "desk",
           "label": "Projects",
           "description": "Open technical projects and case-study style details.",
-          "x": 360,
-          "y": 455,
-          "width": 390,
-          "height": 180,
+          "x": 320,
+          "y": 341,
+          "width": 347,
+          "height": 135,
           "contentType": "projects",
           "actionLabel": "View Projects"
         },
@@ -91,10 +105,10 @@
           "id": "easel",
           "label": "Creative Works",
           "description": "Browse creative work, sketches, and visual experiments.",
-          "x": 1140,
-          "y": 520,
-          "width": 310,
-          "height": 180,
+          "x": 1013,
+          "y": 390,
+          "width": 276,
+          "height": 135,
           "contentType": "creative",
           "actionLabel": "View Creative"
         },
@@ -102,10 +116,10 @@
           "id": "exit",
           "label": "Back Outside",
           "description": "Return to the front yard.",
-          "x": 810,
-          "y": 980,
-          "width": 220,
-          "height": 150,
+          "x": 720,
+          "y": 735,
+          "width": 196,
+          "height": 113,
           "targetScene": "outside",
           "actionLabel": "Exit House"
         }

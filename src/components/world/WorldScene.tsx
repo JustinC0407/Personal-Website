@@ -1,15 +1,18 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
+import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowLeft, Bug, FolderKanban, Home, Mail, Menu, Minus, Palette, Plus, UserRound, X } from "lucide-react";
 import type { Hotspot, WorldData, WorldScene as Scene } from "@/lib/content";
 import { getActiveHotspot } from "@/lib/hotspots";
-import { clampPoint, isBlocked } from "@/lib/collisions";
+import { clampPoint, isBlocked, isEllipseCollision } from "@/lib/collisions";
 import { PortfolioModal } from "@/components/PortfolioModal";
 
-const PLAYER_SIZE = 48;
-const PLAYER_SPEED = 230;
+const PLAYER_HITBOX_WIDTH = 26;
+const PLAYER_HITBOX_HEIGHT = 52;
+const PLAYER_SPEED = 200;
 const DEFAULT_CAMERA_SCALE = 1.7;
 const MIN_CAMERA_SCALE = 1.15;
 const MAX_CAMERA_SCALE = 2.35;
@@ -33,11 +36,26 @@ type Point = {
   y: number;
 };
 
+type MoveDirection = keyof PressedKeys;
+type FacingDirection = "front" | "back" | "left" | "right";
+
 type PressedKeys = {
   up: boolean;
   down: boolean;
   left: boolean;
   right: boolean;
+};
+
+type FallingPetal = {
+  id: string;
+  src: string;
+  left: number;
+  size: number;
+  fallDuration: number;
+  delay: number;
+  swayDistance: number;
+  swayDuration: number;
+  rotate: number;
 };
 
 const emptyKeys: PressedKeys = {
@@ -47,6 +65,25 @@ const emptyKeys: PressedKeys = {
   right: false
 };
 
+const emptyKeyOrder: Record<MoveDirection, number> = {
+  up: 0,
+  down: 0,
+  left: 0,
+  right: 0
+};
+
+const PLAYER_SPRITE_WIDTH = 48;
+const PLAYER_SPRITE_HEIGHT = 90;
+const PLAYER_SHADOW_WIDTH = 30;
+const PLAYER_SHADOW_HEIGHT = 15;
+const WALK_FRAME_SEQUENCE = ["stand", "2", "stand", "4"] as const;
+const WALK_FRAME_DURATION_MS = 140;
+const LEGACY_SCENE_WIDTH = 1800;
+const LEGACY_SCENE_HEIGHT = 1200;
+const WORLD_SCENE_WIDTH = 1600;
+const WORLD_SCENE_HEIGHT = 900;
+const PETAL_COUNT = 16;
+
 const drawerItems = [
   { id: "about", label: "About + Skills", icon: UserRound },
   { id: "projects", label: "Projects", icon: FolderKanban },
@@ -54,20 +91,88 @@ const drawerItems = [
   { id: "contact", label: "Contact / Resume", icon: Mail }
 ] as const;
 
+function seededRandom(seed: number) {
+  const value = Math.sin(seed * 12.9898) * 43758.5453;
+  return value - Math.floor(value);
+}
+
+function buildPetalPool(count: number): FallingPetal[] {
+  return Array.from({ length: count }, (_, index) => {
+    const seed = index + 1;
+    const fallDuration = 7 + seededRandom(seed * 4.11) * 6;
+
+    return {
+      id: `petal-${seed}`,
+      src: `/art/world_petal_${1 + Math.floor(seededRandom(seed * 2.17) * 3)}.png`,
+      left: seededRandom(seed * 8.73) * 108 - 4,
+      size: 12 + seededRandom(seed * 5.41) * 8,
+      fallDuration,
+      delay: -seededRandom(seed * 9.29) * fallDuration,
+      swayDistance: 18 + seededRandom(seed * 10.57) * 52,
+      swayDuration: 2.4 + seededRandom(seed * 11.83) * 3.2,
+      rotate: (seededRandom(seed * 12.97) > 0.5 ? 1 : -1) * (80 + seededRandom(seed * 14.21) * 240)
+    };
+  });
+}
+
+function keyToDirection(key: string): MoveDirection | null {
+  if (key === "w" || key === "arrowup") return "up";
+  if (key === "s" || key === "arrowdown") return "down";
+  if (key === "a" || key === "arrowleft") return "left";
+  if (key === "d" || key === "arrowright") return "right";
+  return null;
+}
+
+function directionToFacing(direction: MoveDirection): FacingDirection {
+  if (direction === "up") return "back";
+  if (direction === "down") return "front";
+  if (direction === "left") return "left";
+  return "right";
+}
+
+function getFacingFromKeys(keys: PressedKeys, keyOrder: Record<MoveDirection, number>): FacingDirection | null {
+  const activeDirection = (Object.entries(keys) as [MoveDirection, boolean][])
+    .filter(([, pressed]) => pressed)
+    .sort((first, second) => keyOrder[second[0]] - keyOrder[first[0]])[0]?.[0];
+
+  return activeDirection ? directionToFacing(activeDirection) : null;
+}
+
+function getFacingFromVector(vector: Point): FacingDirection | null {
+  if (vector.x === 0 && vector.y === 0) {
+    return null;
+  }
+
+  if (Math.abs(vector.x) > Math.abs(vector.y)) {
+    return vector.x < 0 ? "left" : "right";
+  }
+
+  return vector.y < 0 ? "back" : "front";
+}
+
 export function WorldScene({ data }: WorldSceneProps) {
   const [sceneId, setSceneId] = useState(data.scenes[0]?.id ?? "outside");
   const scene = useMemo(() => data.scenes.find((item) => item.id === sceneId) ?? data.scenes[0], [data.scenes, sceneId]);
   const [position, setPosition] = useState<Point>(scene.spawn);
   const positionRef = useRef<Point>(scene.spawn);
   const keysRef = useRef<PressedKeys>(emptyKeys);
+  const keyOrderRef = useRef<Record<MoveDirection, number>>(emptyKeyOrder);
+  const keyOrderCounterRef = useRef(0);
   const dragRef = useRef<Point | null>(null);
   const dragOriginRef = useRef<Point | null>(null);
   const lastFrameRef = useRef<number | null>(null);
+  const animationElapsedRef = useRef(0);
   const [viewport, setViewport] = useState({ width: 1280, height: 720 });
   const [debug, setDebug] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<Hotspot["contentType"] | null>(null);
   const [cameraScale, setCameraScale] = useState(DEFAULT_CAMERA_SCALE);
+  const [facing, setFacing] = useState<FacingDirection>("front");
+  const facingRef = useRef<FacingDirection>("front");
+  const [isMoving, setIsMoving] = useState(false);
+  const isMovingRef = useRef(false);
+  const [walkFrameIndex, setWalkFrameIndex] = useState(0);
+  const walkFrameIndexRef = useRef(0);
   const [detectedControlMode, setDetectedControlMode] = useState<ControlMode>("laptop");
   const [controlModeOverride, setControlModeOverride] = useState<ControlMode | null>(null);
   const controlMode = controlModeOverride ?? detectedControlMode;
@@ -78,24 +183,59 @@ export function WorldScene({ data }: WorldSceneProps) {
         height: Math.min(MOBILE_TEST_VIEWPORT.height, viewport.height - 32)
       }
     : viewport;
+  const playerBounds = useMemo(() => ({ width: PLAYER_HITBOX_WIDTH, height: PLAYER_HITBOX_HEIGHT }), []);
+  const petalPool = useMemo(() => buildPetalPool(PETAL_COUNT), []);
 
   const playerRect = useMemo(
-    () => ({ id: "player", x: position.x, y: position.y, width: PLAYER_SIZE, height: PLAYER_SIZE }),
+    () => ({ id: "player", x: position.x, y: position.y, width: PLAYER_HITBOX_WIDTH, height: PLAYER_HITBOX_HEIGHT }),
     [position]
   );
   const nearbyHotspot = useMemo(() => getActiveHotspot(playerRect, scene.hotspots), [playerRect, scene.hotspots]);
+  const playerInDepthZone = useMemo(() => scene.depthZones.some((zone) => playerRect.x < zone.x + zone.width && playerRect.x + playerRect.width > zone.x && playerRect.y < zone.y + zone.height && playerRect.y + playerRect.height > zone.y), [playerRect, scene.depthZones]);
 
   const camera = useMemo(() => {
     const viewWidth = effectiveViewport.width / cameraScale;
     const viewHeight = effectiveViewport.height / cameraScale;
-    const targetX = position.x + PLAYER_SIZE / 2 - viewWidth / 2;
-    const targetY = position.y + PLAYER_SIZE / 2 - viewHeight / 2;
+    const targetX = position.x + PLAYER_HITBOX_WIDTH / 2 - viewWidth / 2;
+    const targetY = position.y + PLAYER_HITBOX_HEIGHT / 2 - viewHeight / 2;
 
     return {
       x: Math.max(0, Math.min(targetX, data.sceneSize.width - viewWidth)),
       y: Math.max(0, Math.min(targetY, data.sceneSize.height - viewHeight))
     };
   }, [cameraScale, data.sceneSize.height, data.sceneSize.width, effectiveViewport.height, effectiveViewport.width, position.x, position.y]);
+
+  const playerSpriteSrc = useMemo(() => {
+    const pose = isMoving ? WALK_FRAME_SEQUENCE[walkFrameIndex] : "stand";
+    return `/art/character_${facing}_${pose}.png`;
+  }, [facing, isMoving, walkFrameIndex]);
+
+  const setFacingState = useCallback((nextFacing: FacingDirection) => {
+    if (facingRef.current === nextFacing) {
+      return;
+    }
+
+    facingRef.current = nextFacing;
+    setFacing(nextFacing);
+  }, []);
+
+  const setMovingState = useCallback((nextMoving: boolean) => {
+    if (isMovingRef.current === nextMoving) {
+      return;
+    }
+
+    isMovingRef.current = nextMoving;
+    setIsMoving(nextMoving);
+  }, []);
+
+  const resetWalkAnimation = useCallback(() => {
+    animationElapsedRef.current = 0;
+
+    if (walkFrameIndexRef.current !== 0) {
+      walkFrameIndexRef.current = 0;
+      setWalkFrameIndex(0);
+    }
+  }, []);
 
   const setScene = useCallback(
     (nextSceneId: string) => {
@@ -108,22 +248,24 @@ export function WorldScene({ data }: WorldSceneProps) {
       setPosition(nextScene.spawn);
       setSceneId(nextScene.id);
       setActiveModal(null);
+      setMovingState(false);
+      resetWalkAnimation();
     },
-    [data.scenes]
+    [data.scenes, resetWalkAnimation, setMovingState]
   );
 
   const tryMove = useCallback(
     (current: Point, delta: Point) => {
-      const nextX = clampPoint({ x: current.x + delta.x, y: current.y }, data.sceneSize, PLAYER_SIZE);
-      const xRect = { id: "player", x: nextX.x, y: nextX.y, width: PLAYER_SIZE, height: PLAYER_SIZE };
+      const nextX = clampPoint({ x: current.x + delta.x, y: current.y }, data.sceneSize, playerBounds);
+      const xRect = { id: "player", x: nextX.x, y: nextX.y, width: PLAYER_HITBOX_WIDTH, height: PLAYER_HITBOX_HEIGHT };
       const afterX = isBlocked(xRect, scene.collisions) ? current : nextX;
 
-      const nextY = clampPoint({ x: afterX.x, y: afterX.y + delta.y }, data.sceneSize, PLAYER_SIZE);
-      const yRect = { id: "player", x: nextY.x, y: nextY.y, width: PLAYER_SIZE, height: PLAYER_SIZE };
+      const nextY = clampPoint({ x: afterX.x, y: afterX.y + delta.y }, data.sceneSize, playerBounds);
+      const yRect = { id: "player", x: nextY.x, y: nextY.y, width: PLAYER_HITBOX_WIDTH, height: PLAYER_HITBOX_HEIGHT };
 
       return isBlocked(yRect, scene.collisions) ? afterX : nextY;
     },
-    [data.sceneSize, scene.collisions]
+    [data.sceneSize, playerBounds, scene.collisions]
   );
 
   const activateHotspot = useCallback(
@@ -171,17 +313,17 @@ export function WorldScene({ data }: WorldSceneProps) {
   useEffect(() => {
     function updateKey(event: KeyboardEvent, pressed: boolean) {
       const key = event.key.toLowerCase();
-      const next = { ...keysRef.current };
-      let handled = true;
+      const direction = keyToDirection(key);
 
-      if (key === "w" || key === "arrowup") next.up = pressed;
-      else if (key === "s" || key === "arrowdown") next.down = pressed;
-      else if (key === "a" || key === "arrowleft") next.left = pressed;
-      else if (key === "d" || key === "arrowright") next.right = pressed;
-      else handled = false;
-
-      if (handled && controlMode === "laptop") {
+      if (direction && controlMode === "laptop") {
+        const next = { ...keysRef.current, [direction]: pressed };
         event.preventDefault();
+
+        if (pressed && !keysRef.current[direction]) {
+          keyOrderCounterRef.current += 1;
+          keyOrderRef.current = { ...keyOrderRef.current, [direction]: keyOrderCounterRef.current };
+        }
+
         keysRef.current = next;
       }
 
@@ -209,9 +351,13 @@ export function WorldScene({ data }: WorldSceneProps) {
 
   useEffect(() => {
     keysRef.current = emptyKeys;
+    keyOrderRef.current = emptyKeyOrder;
+    keyOrderCounterRef.current = 0;
     dragRef.current = null;
     dragOriginRef.current = null;
-  }, [controlMode]);
+    setMovingState(false);
+    resetWalkAnimation();
+  }, [controlMode, resetWalkAnimation, setMovingState]);
 
   useEffect(() => {
     let frame = 0;
@@ -225,6 +371,7 @@ export function WorldScene({ data }: WorldSceneProps) {
         const keys = controlMode === "laptop" ? keysRef.current : emptyKeys;
         let dx = Number(keys.right) - Number(keys.left);
         let dy = Number(keys.down) - Number(keys.up);
+        const inputFacing = controlMode === "laptop" ? getFacingFromKeys(keysRef.current, keyOrderRef.current) : null;
 
         if (controlMode === "mobile" && dragRef.current) {
           dx += dragRef.current.x;
@@ -232,6 +379,12 @@ export function WorldScene({ data }: WorldSceneProps) {
         }
 
         const magnitude = Math.hypot(dx, dy);
+        const dragFacing = controlMode === "mobile" && dragRef.current ? getFacingFromVector(dragRef.current) : null;
+        const nextFacing = inputFacing ?? dragFacing;
+
+        if (nextFacing) {
+          setFacingState(nextFacing);
+        }
 
         if (magnitude > 0) {
           const normalized = { x: dx / magnitude, y: dy / magnitude };
@@ -239,10 +392,36 @@ export function WorldScene({ data }: WorldSceneProps) {
             x: normalized.x * PLAYER_SPEED * deltaSeconds,
             y: normalized.y * PLAYER_SPEED * deltaSeconds
           });
+          const moved = next.x !== positionRef.current.x || next.y !== positionRef.current.y;
 
           positionRef.current = next;
           setPosition(next);
+
+          if (moved) {
+            setMovingState(true);
+            animationElapsedRef.current += deltaSeconds * 1000;
+
+            if (animationElapsedRef.current >= WALK_FRAME_DURATION_MS) {
+              const frameSteps = Math.floor(animationElapsedRef.current / WALK_FRAME_DURATION_MS);
+              animationElapsedRef.current -= frameSteps * WALK_FRAME_DURATION_MS;
+              const nextFrameIndex = (walkFrameIndexRef.current + frameSteps) % WALK_FRAME_SEQUENCE.length;
+
+              if (walkFrameIndexRef.current !== nextFrameIndex) {
+                walkFrameIndexRef.current = nextFrameIndex;
+                setWalkFrameIndex(nextFrameIndex);
+              }
+            }
+          } else {
+            setMovingState(false);
+            resetWalkAnimation();
+          }
+        } else {
+          setMovingState(false);
+          resetWalkAnimation();
         }
+      } else {
+        setMovingState(false);
+        resetWalkAnimation();
       }
 
       frame = window.requestAnimationFrame(tick);
@@ -250,7 +429,7 @@ export function WorldScene({ data }: WorldSceneProps) {
 
     frame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frame);
-  }, [activeModal, controlMode, drawerOpen, tryMove]);
+  }, [activeModal, controlMode, drawerOpen, resetWalkAnimation, setFacingState, setMovingState, tryMove]);
 
   function beginDrag(event: React.PointerEvent<HTMLDivElement>) {
     if (controlMode !== "mobile" || event.pointerType === "mouse") {
@@ -318,6 +497,8 @@ export function WorldScene({ data }: WorldSceneProps) {
         }}
       >
         <SceneBackdrop scene={scene} />
+        {scene.id === "outside" ? <FallingPetals petals={petalPool} sceneSize={data.sceneSize} /> : null}
+        {scene.id === "outside" && playerInDepthZone ? <SceneForegroundOverlay scene={scene} behindPlayer /> : null}
         {debug ? <DebugOverlay scene={scene} /> : null}
         {scene.hotspots.map((hotspot) => (
           <button
@@ -334,15 +515,36 @@ export function WorldScene({ data }: WorldSceneProps) {
         ))}
         <div
           aria-label="Player"
-          className="absolute z-30 grid place-items-center rounded-sm border-4 border-[#1d2332] bg-[#2d68b8] font-display text-lg font-black text-white shadow-[5px_6px_0_rgba(30,25,28,0.35)]"
+          className="pointer-events-none absolute z-30 select-none"
           style={{
-            width: PLAYER_SIZE,
-            height: PLAYER_SIZE,
-            transform: `translate3d(${position.x}px, ${position.y}px, 0)`
+            width: PLAYER_SPRITE_WIDTH,
+            height: PLAYER_SPRITE_HEIGHT,
+            transform: `translate3d(${position.x - (PLAYER_SPRITE_WIDTH - PLAYER_HITBOX_WIDTH) / 2}px, ${position.y + PLAYER_HITBOX_HEIGHT - PLAYER_SPRITE_HEIGHT}px, 0)`
           }}
         >
-          JC
+          <div
+            aria-hidden
+            className="absolute left-1/2 rounded-full bg-black/35 blur-[1px]"
+            style={{
+              width: PLAYER_SHADOW_WIDTH,
+              height: PLAYER_SHADOW_HEIGHT,
+              bottom:-2,
+              transform: "translateX(-50%)"
+            }}
+          />
+          <Image
+            alt=""
+            className="relative h-full w-full"
+            draggable={false}
+            height={PLAYER_SPRITE_HEIGHT}
+            priority
+            src={playerSpriteSrc}
+            style={{ imageRendering: "pixelated" }}
+            unoptimized
+            width={PLAYER_SPRITE_WIDTH}
+          />
         </div>
+        {scene.id !== "outside" || !playerInDepthZone ? <SceneForegroundOverlay scene={scene} /> : null}
       </div>
       </div>
 
@@ -374,6 +576,41 @@ export function WorldScene({ data }: WorldSceneProps) {
 
       {activeModal ? <PortfolioModal type={activeModal} onClose={() => setActiveModal(null)} /> : null}
     </section>
+  );
+}
+
+function FallingPetals({ petals, sceneSize }: { petals: FallingPetal[]; sceneSize: { width: number; height: number } }) {
+  return (
+    <div aria-hidden className="world-petals-layer absolute inset-0 z-[27] overflow-hidden">
+      {petals.map((petal) => {
+        const style = {
+          left: `${petal.left}%`,
+          width: `${petal.size}px`,
+          height: `${petal.size}px`,
+          "--petal-start-y": `${-Math.round(80 + petal.size)}px`,
+          "--petal-fall-distance": `${sceneSize.height + 180}px`,
+          "--petal-fall-duration": `${petal.fallDuration.toFixed(2)}s`,
+          "--petal-delay": `${petal.delay.toFixed(2)}s`,
+          "--petal-sway-duration": `${petal.swayDuration.toFixed(2)}s`,
+          "--petal-sway-distance": `${petal.swayDistance.toFixed(2)}px`,
+          "--petal-rotate": `${petal.rotate.toFixed(2)}deg`
+        } as CSSProperties;
+
+        return (
+          <div className="world-petal" key={petal.id} style={style}>
+            <Image
+              alt=""
+              className="world-petal-image h-full w-full"
+              draggable={false}
+              height={Math.round(petal.size)}
+              src={petal.src}
+              unoptimized
+              width={Math.round(petal.size)}
+            />
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -532,37 +769,62 @@ function GameHud({
 function SceneBackdrop({ scene }: { scene: Scene }) {
   if (scene.id === "inside") {
     return (
-      <div className="absolute inset-0 bg-[#c57d55]">
-        <div className="absolute inset-x-0 top-0 h-[150px] border-b-[6px] border-[#5f2f20] bg-[#9d563f]" />
-        <div className="absolute inset-x-0 bottom-0 h-[120px] bg-[#b06c49]" />
-        <div className="absolute left-[190px] top-[230px] h-[420px] w-[140px] border-[6px] border-[#5f2f20] bg-[#724931]" />
-        <div className="absolute left-[360px] top-[250px] h-[220px] w-[390px] border-[6px] border-[#5f2f20] bg-[#7b5236]" />
-        <div className="absolute left-[440px] top-[170px] h-[120px] w-[190px] border-[6px] border-[#5f2f20] bg-[#273048]" />
-        <div className="absolute left-[1160px] top-[230px] h-[320px] w-[260px] border-[6px] border-[#5f2f20] bg-[#fff8dc]" />
-        <div className="absolute left-[1215px] top-[295px] h-[145px] w-[150px] border-[5px] border-[#5f2f20] bg-[#9bd4d8]" />
-        <div className="absolute left-[780px] top-[555px] h-[165px] w-[250px] border-[5px] border-[#5f2f20] bg-[#f2bd6b]" />
-        <div className="absolute bottom-[70px] left-[810px] h-[170px] w-[220px] border-[6px] border-[#5f2f20] bg-[#e4c66d]" />
+      <div className="absolute inset-0 overflow-hidden bg-[#c57d55]">
+        <div
+          className="absolute left-0 top-0 origin-top-left"
+          style={{
+            width: LEGACY_SCENE_WIDTH,
+            height: LEGACY_SCENE_HEIGHT,
+            transform: `scale(${WORLD_SCENE_WIDTH / LEGACY_SCENE_WIDTH}, ${WORLD_SCENE_HEIGHT / LEGACY_SCENE_HEIGHT})`
+          }}
+        >
+          <div className="absolute inset-x-0 top-0 h-[150px] border-b-[6px] border-[#5f2f20] bg-[#9d563f]" />
+          <div className="absolute inset-x-0 bottom-0 h-[120px] bg-[#b06c49]" />
+          <div className="absolute left-[190px] top-[230px] h-[420px] w-[140px] border-[6px] border-[#5f2f20] bg-[#724931]" />
+          <div className="absolute left-[360px] top-[250px] h-[220px] w-[390px] border-[6px] border-[#5f2f20] bg-[#7b5236]" />
+          <div className="absolute left-[440px] top-[170px] h-[120px] w-[190px] border-[6px] border-[#5f2f20] bg-[#273048]" />
+          <div className="absolute left-[1160px] top-[230px] h-[320px] w-[260px] border-[6px] border-[#5f2f20] bg-[#fff8dc]" />
+          <div className="absolute left-[1215px] top-[295px] h-[145px] w-[150px] border-[5px] border-[#5f2f20] bg-[#9bd4d8]" />
+          <div className="absolute left-[780px] top-[555px] h-[165px] w-[250px] border-[5px] border-[#5f2f20] bg-[#f2bd6b]" />
+          <div className="absolute bottom-[70px] left-[810px] h-[170px] w-[220px] border-[6px] border-[#5f2f20] bg-[#e4c66d]" />
+        </div>
       </div>
     );
   }
 
   return (
     <div className="absolute inset-0 bg-[#76bd62]">
-      <div className="absolute inset-x-0 top-0 h-[120px] border-b-[6px] border-[#2d5f34] bg-[#416f3d]" />
-      <div className="absolute left-0 top-0 h-full w-[150px] bg-[#416f3d]" />
-      <div className="absolute right-0 top-0 h-full w-[150px] bg-[#416f3d]" />
-      <div className="absolute inset-x-0 bottom-0 h-[80px] border-t-[6px] border-[#5f2f20] bg-[#9a6b3f]" />
-      <div className="absolute left-[780px] top-[600px] h-[520px] w-[150px] bg-[#d8b55d]" />
-      <div className="absolute left-[940px] top-[275px] h-[300px] w-[430px] border-[6px] border-[#5f2f20] bg-[#b8684b]" />
-      <div className="absolute left-[900px] top-[180px] h-0 w-0 border-x-[255px] border-b-[120px] border-x-transparent border-b-[#8f3f3a]" />
-      <div className="absolute left-[1070px] top-[500px] h-[90px] w-[95px] border-[6px] border-[#5f2f20] bg-[#e4c66d]" />
-      <div className="absolute left-[265px] top-[660px] h-[165px] w-[260px] rounded-[45%] border-[6px] border-[#2d5f76] bg-[#6fb6c9]" />
-      <div className="absolute left-[625px] top-[570px] h-[105px] w-[90px] border-[6px] border-[#5f2f20] bg-[#fff8dc]" />
-      <div className="absolute left-[660px] top-[675px] h-[70px] w-[14px] bg-[#5f2f20]" />
-      <div className="absolute left-[1245px] top-[665px] h-[85px] w-[92px] border-[6px] border-[#5f2f20] bg-[#d45a66]" />
-      <div className="absolute left-[1284px] top-[750px] h-[60px] w-[14px] bg-[#5f2f20]" />
-      <div className="absolute left-[590px] top-[900px] h-[130px] w-[240px] border-[5px] border-[#5f2f20] bg-[#5c9a47]" />
-      <div className="absolute left-[1010px] top-[900px] h-[130px] w-[260px] border-[5px] border-[#5f2f20] bg-[#5c9a47]" />
+      <Image
+        alt=""
+        className="absolute inset-0 h-full w-full select-none object-fill"
+        draggable={false}
+        fill
+        priority
+        src="/art/world_background.png"
+        style={{ imageRendering: "pixelated" }}
+        unoptimized
+      />
+    </div>
+  );
+}
+
+function SceneForegroundOverlay({ scene, behindPlayer = false }: { scene: Scene; behindPlayer?: boolean }) {
+  if (scene.id !== "outside") {
+    return null;
+  }
+
+  return (
+    <div className={behindPlayer ? "pointer-events-none absolute inset-0 z-[25]" : "pointer-events-none absolute inset-0 z-[35]"}>
+      <Image
+        alt=""
+        className="absolute inset-0 h-full w-full select-none object-fill"
+        draggable={false}
+        fill
+        priority
+        src="/art/world_background_ontop.png"
+        style={{ imageRendering: "pixelated" }}
+        unoptimized
+      />
     </div>
   );
 }
@@ -570,18 +832,33 @@ function SceneBackdrop({ scene }: { scene: Scene }) {
 function DebugOverlay({ scene }: { scene: Scene }) {
   return (
     <>
-      {scene.collisions.map((rect) => (
-        <div
-          className="pointer-events-none absolute z-40 border-4 border-red-700 bg-red-500/20"
-          key={rect.id}
-          style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
-        />
-      ))}
+      {scene.collisions.map((collision) =>
+        isEllipseCollision(collision) ? (
+          <div
+            className="pointer-events-none absolute z-40 rounded-full border-4 border-red-700 bg-red-500/20"
+            key={collision.id}
+            style={{ left: collision.cx - collision.rx, top: collision.cy - collision.ry, width: collision.rx * 2, height: collision.ry * 2 }}
+          />
+        ) : (
+          <div
+            className="pointer-events-none absolute z-40 border-4 border-red-700 bg-red-500/20"
+            key={collision.id}
+            style={{ left: collision.x, top: collision.y, width: collision.width, height: collision.height }}
+          />
+        )
+      )}
       {scene.hotspots.map((rect) => (
         <div
           className="pointer-events-none absolute z-40 border-4 border-blue-700 bg-blue-500/20"
           key={rect.id}
           style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
+        />
+      ))}
+      {scene.depthZones.map((zone) => (
+        <div
+          className="pointer-events-none absolute z-40 border-4 border-yellow-500 bg-yellow-300/20"
+          key={zone.id}
+          style={{ left: zone.x, top: zone.y, width: zone.width, height: zone.height }}
         />
       ))}
     </>

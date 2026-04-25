@@ -44,6 +44,21 @@ export type Rect = {
   height: number;
 };
 
+export type RectCollision = Rect & {
+  shape: "rect";
+};
+
+export type EllipseCollision = {
+  id: string;
+  shape: "ellipse";
+  cx: number;
+  cy: number;
+  rx: number;
+  ry: number;
+};
+
+export type CollisionShape = RectCollision | EllipseCollision;
+
 export type Hotspot = Rect & {
   label: string;
   description: string;
@@ -59,7 +74,8 @@ export type WorldScene = {
   name: string;
   background: string;
   spawn: { x: number; y: number };
-  collisions: Rect[];
+  collisions: CollisionShape[];
+  depthZones: Rect[];
   hotspots: Hotspot[];
 };
 

@@ -19,21 +19,38 @@ Completed work
 - Added world zoom controls under the scene label in the top-right corner.
 - Changed world hotspots so About, Projects, Creative, and Contact open full-screen popups instead of routing away.
 - Kept house door/exit hotspots as scene transitions.
+- Replaced the blue JC player block with animated directional character sprites.
+- Added walking animation that cycles stand -> 2 -> stand -> 4 while moving and returns to stand when idle.
+- Scaled the player sprite art for the world scene and added a small ground shadow under the character.
+- Tightened the player hitbox to better match the visible sprite instead of the old square footprint.
+- Replaced the outside placeholder block layout with layered world artwork:
+  - world_background.png as the base scene.
+  - world_background_ontop.png as the top overlay layer.
+- Changed the world scene to the outside art's native 1600x900 size and rescaled the world JSON coordinates to match.
+- Added support for mixed collision shapes:
+  - rectangle collisions for walls, roots, beds, and blockers.
+  - ellipse collisions for rounded lake/water blockers.
+- Retuned the outside world collisions and temporary outside hotspots against the new art.
+- Added tree-root blockers so the player can walk behind tree canopies but not into the exposed roots.
+- Added curved lake blockers with an opening across the bridge so the player can cross only at the bridge area.
+- Added debug rendering for ellipse collisions and yellow depth-zone overlays.
+- Added data-driven depth zones so entering a yellow-box area changes whether the outside top overlay renders in front of or behind the player.
+- Fixed a z-index bug where the depth zone was active but the overlay still rendered above the player.
+- Fixed a malformed ellipse/rect collision entry that caused a NaN debug-style console error.
 - Fixed extension-caused hydration warning on the root body.
 - Fixed modal scrolling so content scrolls below the header instead of sliding behind it.
 - Fixed the homepage height after navbar removal so the global background grid no longer shows at the bottom.
 
 Recent verification
-- npm run lint passed after the shared modal and world updates.
-- npm run typecheck passed after the latest homepage height fix.
+- npm run lint passed after the sprite, world-art, collision-shape, and depth-zone updates.
+- npm run typecheck passed after the sprite, world-art, collision-shape, and depth-zone updates.
 - Production build was previously verified before the latest small UI tweaks, but the user asked not to run build every time.
 
 Still to do
-- Replace placeholder CSS/block world art with final custom pixel sprites and backgrounds.
 - Replace placeholder portfolio content with real projects, education, links, resume, and contact info.
-- Improve the player character from a blue JC block into a proper sprite or sprite sheet.
-- Add walking direction/animation frames once sprite art exists.
-- Tune world collision and hotspot rectangles after final art is added.
+- Continue tuning outside-world collision boxes, ellipse blockers, and depth-zone rectangles by hand against the final art.
+- Continue adjusting temporary outside hotspots until the signpost/mailbox sprites are added.
+- Decide whether the yellow-box depth-zone hack is good enough long-term or whether the house should eventually become its own separate layer.
 - Improve mobile drag controls with visual feedback if desired.
 - Add richer project/creative screenshots once assets are available.
 - Decide whether standalone route pages should remain visible in the normal navbar for non-home pages or become secondary/fallback only.

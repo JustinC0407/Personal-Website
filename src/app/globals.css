@@ -198,6 +198,70 @@ button:focus-visible {
   transform: translateY(-2px);
 }
 
+.world-petals-layer {
+  pointer-events: none;
+}
+
+.world-petal {
+  position: absolute;
+  top: 0;
+  will-change: transform;
+  animation: world-petal-fall var(--petal-fall-duration) linear infinite;
+  animation-delay: var(--petal-delay);
+}
+
+.world-petal-image {
+  image-rendering: pixelated;
+  will-change: transform;
+  animation: world-petal-sway var(--petal-sway-duration) ease-in-out infinite;
+  animation-delay: var(--petal-delay);
+  transform-origin: center;
+}
+
+@keyframes world-petal-fall {
+  0% {
+    transform: translate3d(0, var(--petal-start-y), 0);
+  }
+
+  25% {
+    transform: translate3d(calc(var(--petal-sway-distance) * -0.6), calc(var(--petal-fall-distance) * 0.25), 0);
+  }
+
+  50% {
+    transform: translate3d(var(--petal-sway-distance), calc(var(--petal-fall-distance) * 0.5), 0);
+  }
+
+  75% {
+    transform: translate3d(calc(var(--petal-sway-distance) * -0.35), calc(var(--petal-fall-distance) * 0.75), 0);
+  }
+
+  100% {
+    transform: translate3d(calc(var(--petal-sway-distance) * 0.25), var(--petal-fall-distance), 0);
+  }
+}
+
+@keyframes world-petal-sway {
+  0% {
+    transform: rotate(0deg) scale(1);
+  }
+
+  25% {
+    transform: rotate(calc(var(--petal-rotate) * 0.35)) scaleX(-1) scaleY(0.94);
+  }
+
+  50% {
+    transform: rotate(calc(var(--petal-rotate) * 0.62)) scaleX(1) scaleY(1.04);
+  }
+
+  75% {
+    transform: rotate(calc(var(--petal-rotate) * 0.82)) scaleX(-1) scaleY(0.96);
+  }
+
+  100% {
+    transform: rotate(var(--petal-rotate)) scaleX(1) scaleY(1);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .start-clouds-strip,
   .start-clouds-panel,
@@ -209,6 +273,10 @@ button:focus-visible {
   .start-mountains-intro,
   .start-sign-intro {
     transform: translateY(0);
+  }
+
+  .world-petals-layer {
+    display: none;
   }
 
   *,
