@@ -4,10 +4,10 @@ import Image from "next/image";
 import Link from "next/link";
 import type { CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { ArrowLeft, Bug, FolderKanban, Home, Mail, Menu, Minus, Palette, Plus, UserRound, X } from "lucide-react";
-import type { Hotspot, WorldData, WorldScene as Scene } from "@/lib/content";
+import { ArrowLeft, Bug, FolderKanban, Home, Mail, Menu, Minus, Palette, Plus, Save, Trash2, UserRound, X } from "lucide-react";
+import type { CollisionShape, Hotspot, PigeonConfig, Rect, WorldData, WorldScene as Scene } from "@/lib/content";
 import { getActiveHotspot } from "@/lib/hotspots";
-import { clampPoint, isBlocked, isEllipseCollision } from "@/lib/collisions";
+import { clampPoint, isBlocked, isEllipseCollision, isInsideWalkableArea } from "@/lib/collisions";
 import { PortfolioModal } from "@/components/PortfolioModal";
 
 const PLAYER_HITBOX_WIDTH = 26;
@@ -58,6 +58,71 @@ type FallingPetal = {
   rotate: number;
 };
 
+type PigeonAnimationName = "Idle" | "Movement" | "Peck" | "Flight";
+type PigeonPhase = "idle" | "peck" | "walk" | "flight" | "land";
+type PigeonSpriteFrame = {
+  frame: {
+    x: number;
+    y: number;
+    w: number;
+    h: number;
+  };
+  duration: number;
+};
+type PigeonSpriteData = {
+  frames: Record<string, PigeonSpriteFrame>;
+  meta: {
+    size: {
+      w: number;
+      h: number;
+    };
+  };
+};
+type PigeonSnapshot = {
+  animation: PigeonAnimationName;
+  facing: "left" | "right";
+  frameIndex: number;
+  phase: PigeonPhase;
+  x: number;
+  y: number;
+};
+
+type EditorLayer = "collisions" | "walkableAreas" | "depthZones";
+type EditorShape = "rect" | "ellipse";
+type ResizeHandle = "nw" | "ne" | "sw" | "se";
+type EditorSelection = {
+  layer: EditorLayer;
+  id: string;
+} | null;
+type EditorDraft =
+  | {
+      mode: "draw";
+      layer: EditorLayer;
+      id: string;
+      start: Point;
+    }
+  | {
+      mode: "move";
+      layer: EditorLayer;
+      id: string;
+      start: Point;
+      original: EditableShape;
+    }
+  | {
+      mode: "resize";
+      layer: EditorLayer;
+      id: string;
+      handle: ResizeHandle;
+      originalBounds: Bounds;
+    };
+type EditableShape = CollisionShape | Rect;
+type Bounds = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
 const emptyKeys: PressedKeys = {
   up: false,
   down: false,
@@ -78,11 +143,8 @@ const PLAYER_SHADOW_WIDTH = 30;
 const PLAYER_SHADOW_HEIGHT = 15;
 const WALK_FRAME_SEQUENCE = ["stand", "2", "stand", "4"] as const;
 const WALK_FRAME_DURATION_MS = 140;
-const LEGACY_SCENE_WIDTH = 1800;
-const LEGACY_SCENE_HEIGHT = 1200;
-const WORLD_SCENE_WIDTH = 1600;
-const WORLD_SCENE_HEIGHT = 900;
 const PETAL_COUNT = 16;
+const MIN_EDITOR_SHAPE_SIZE = 8;
 
 const drawerItems = [
   { id: "about", label: "About + Skills", icon: UserRound },
@@ -113,6 +175,151 @@ function buildPetalPool(count: number): FallingPetal[] {
       rotate: (seededRandom(seed * 12.97) > 0.5 ? 1 : -1) * (80 + seededRandom(seed * 14.21) * 240)
     };
   });
+}
+
+function getPigeonAnimationFrames(spriteData: PigeonSpriteData, animation: PigeonAnimationName) {
+  return Object.entries(spriteData.frames)
+    .filter(([name]) => name.includes(`(${animation})`))
+    .sort(([, first], [, second]) => first.frame.x - second.frame.x)
+    .map(([, frame]) => frame);
+}
+
+function getLoopedFrameIndex(frames: PigeonSpriteFrame[], elapsed: number) {
+  const totalDuration = frames.reduce((total, frame) => total + frame.duration, 0);
+
+  if (totalDuration <= 0) {
+    return 0;
+  }
+
+  let localTime = elapsed % totalDuration;
+
+  for (let index = 0; index < frames.length; index += 1) {
+    localTime -= frames[index].duration;
+
+    if (localTime < 0) {
+      return index;
+    }
+  }
+
+  return 0;
+}
+
+function easeInOut(value: number) {
+  return value * value * (3 - 2 * value);
+}
+
+function lerp(start: number, end: number, value: number) {
+  return start + (end - start) * value;
+}
+
+function getPigeonWalkTarget(pigeon: PigeonConfig) {
+  const seed = pigeon.id.split("").reduce((total, character) => total + character.charCodeAt(0), 0);
+  const angle = seededRandom(seed * 3.41) * Math.PI * 2;
+  const distance = pigeon.wanderRadius * (0.58 + seededRandom(seed * 5.17) * 0.34);
+
+  return {
+    x: pigeon.x + Math.cos(angle) * distance,
+    y: pigeon.y + Math.sin(angle) * distance * 0.42
+  };
+}
+
+function getPigeonWalkPosition(base: Point, target: Point, progress: number) {
+  const outAndBack = progress < 0.5 ? easeInOut(progress * 2) : easeInOut((1 - progress) * 2);
+
+  return {
+    x: lerp(base.x, target.x, outAndBack),
+    y: lerp(base.y, target.y, outAndBack)
+  };
+}
+
+function getPigeonSnapshot(pigeon: PigeonConfig, elapsed: number, framesByAnimation: Record<PigeonAnimationName, PigeonSpriteFrame[]>): PigeonSnapshot {
+  const { idle, peck, walk, land, offset } = pigeon.timings;
+  const homeBase = { x: pigeon.x, y: pigeon.y };
+  const awayBase = { x: pigeon.flightPath.end.x, y: pigeon.flightPath.end.y + 32 };
+  const flightDistance = Math.hypot(awayBase.x - homeBase.x, awayBase.y - homeBase.y);
+  const flight = Math.max(1800, (flightDistance / Math.max(1, pigeon.flightPath.speed)) * 1000);
+  const postFlightIdle = Math.max(900, Math.round(idle * 0.55));
+  const cycleDuration = idle + peck + walk + flight + land + postFlightIdle;
+  const totalTime = elapsed + offset;
+  const cycleIndex = Math.floor(totalTime / cycleDuration);
+  const localTime = totalTime % cycleDuration;
+  const base = cycleIndex % 2 === 0 ? homeBase : awayBase;
+  const destination = cycleIndex % 2 === 0 ? awayBase : homeBase;
+  const walkTarget = getPigeonWalkTarget(pigeon);
+  const localWalkTarget = {
+    x: base.x + (walkTarget.x - pigeon.x),
+    y: base.y + (walkTarget.y - pigeon.y)
+  };
+
+  if (localTime < idle) {
+    return {
+      animation: "Idle",
+      facing: "right",
+      frameIndex: getLoopedFrameIndex(framesByAnimation.Idle, localTime * 0.62),
+      phase: "idle",
+      ...base
+    };
+  }
+
+  if (localTime < idle + peck) {
+    return {
+      animation: "Peck",
+      facing: "right",
+      frameIndex: getLoopedFrameIndex(framesByAnimation.Peck, localTime - idle),
+      phase: "peck",
+      ...base
+    };
+  }
+
+  if (localTime < idle + peck + walk) {
+    const progress = (localTime - idle - peck) / walk;
+    const walkPosition = getPigeonWalkPosition(base, localWalkTarget, progress);
+
+    return {
+      animation: "Movement",
+      facing: progress < 0.5 ? (localWalkTarget.x < base.x ? "left" : "right") : (base.x < localWalkTarget.x ? "left" : "right"),
+      frameIndex: getLoopedFrameIndex(framesByAnimation.Movement, localTime - idle - peck),
+      phase: "walk",
+      x: walkPosition.x,
+      y: walkPosition.y
+    };
+  }
+
+  if (localTime < idle + peck + walk + flight) {
+    const progress = (localTime - idle - peck - walk) / flight;
+    const eased = easeInOut(progress);
+    const flightBaseY = lerp(base.y, destination.y, eased);
+
+    return {
+      animation: "Flight",
+      facing: destination.x < base.x ? "left" : "right",
+      frameIndex: getLoopedFrameIndex(framesByAnimation.Flight, localTime - idle - peck - walk),
+      phase: "flight",
+      x: lerp(base.x, destination.x, eased),
+      y: flightBaseY - Math.sin(progress * Math.PI) * pigeon.flightPath.arcHeight
+    };
+  }
+
+  if (localTime < idle + peck + walk + flight + land) {
+    const progress = easeInOut((localTime - idle - peck - walk - flight) / land);
+
+    return {
+      animation: "Movement",
+      facing: destination.x < base.x ? "left" : "right",
+      frameIndex: getLoopedFrameIndex(framesByAnimation.Movement, localTime - idle - peck - walk - flight),
+      phase: "land",
+      x: destination.x,
+      y: lerp(destination.y - 32, destination.y, progress)
+    };
+  }
+
+  return {
+    animation: "Idle",
+    facing: "right",
+    frameIndex: getLoopedFrameIndex(framesByAnimation.Idle, (localTime - idle - peck - walk - flight - land) * 0.62),
+    phase: "idle",
+    ...destination
+  };
 }
 
 function keyToDirection(key: string): MoveDirection | null {
@@ -150,9 +357,264 @@ function getFacingFromVector(vector: Point): FacingDirection | null {
   return vector.y < 0 ? "back" : "front";
 }
 
+function cloneWorldData(data: WorldData): WorldData {
+  const cloned = JSON.parse(JSON.stringify(data)) as WorldData;
+  return normalizeWorldData(cloned);
+}
+
+function normalizeWorldData(data: WorldData): WorldData {
+  return {
+    ...data,
+    scenes: data.scenes.map((scene) => ({
+      ...scene,
+      collisions: ensureUniqueShapeIds(scene.collisions),
+      walkableAreas: ensureUniqueShapeIds(scene.walkableAreas ?? []),
+      depthZones: ensureUniqueShapeIds(scene.depthZones)
+    }))
+  };
+}
+
+function ensureUniqueShapeIds<T extends { id: string }>(shapes: T[]): T[] {
+  const used = new Set<string>();
+
+  return shapes.map((shape) => {
+    let id = shape.id;
+    let suffix = 2;
+
+    while (used.has(id)) {
+      id = `${shape.id}-${suffix}`;
+      suffix += 1;
+    }
+
+    used.add(id);
+    return id === shape.id ? shape : { ...shape, id };
+  });
+}
+
+function roundPoint(point: Point): Point {
+  return {
+    x: Math.round(point.x),
+    y: Math.round(point.y)
+  };
+}
+
+function shapeToBounds(shape: EditableShape): Bounds {
+  if ("shape" in shape && shape.shape === "ellipse") {
+    return {
+      x: shape.cx - shape.rx,
+      y: shape.cy - shape.ry,
+      width: shape.rx * 2,
+      height: shape.ry * 2
+    };
+  }
+
+  return {
+    x: shape.x,
+    y: shape.y,
+    width: shape.width,
+    height: shape.height
+  };
+}
+
+function boundsToShape(id: string, bounds: Bounds, layer: EditorLayer, shapeKind: EditorShape): EditableShape {
+  const normalized = normalizeBounds(bounds);
+
+  if (layer !== "depthZones" && shapeKind === "ellipse") {
+    return {
+      id,
+      shape: "ellipse",
+      cx: Math.round(normalized.x + normalized.width / 2),
+      cy: Math.round(normalized.y + normalized.height / 2),
+      rx: Math.max(MIN_EDITOR_SHAPE_SIZE / 2, Math.round(normalized.width / 2)),
+      ry: Math.max(MIN_EDITOR_SHAPE_SIZE / 2, Math.round(normalized.height / 2))
+    };
+  }
+
+  return {
+    id,
+    ...(layer !== "depthZones" ? { shape: "rect" as const } : {}),
+    x: Math.round(normalized.x),
+    y: Math.round(normalized.y),
+    width: Math.max(MIN_EDITOR_SHAPE_SIZE, Math.round(normalized.width)),
+    height: Math.max(MIN_EDITOR_SHAPE_SIZE, Math.round(normalized.height))
+  };
+}
+
+function normalizeBounds(bounds: Bounds): Bounds {
+  const x = bounds.width < 0 ? bounds.x + bounds.width : bounds.x;
+  const y = bounds.height < 0 ? bounds.y + bounds.height : bounds.y;
+
+  return {
+    x,
+    y,
+    width: Math.abs(bounds.width),
+    height: Math.abs(bounds.height)
+  };
+}
+
+function moveShape(shape: EditableShape, delta: Point): EditableShape {
+  if ("shape" in shape && shape.shape === "ellipse") {
+    return {
+      ...shape,
+      cx: Math.round(shape.cx + delta.x),
+      cy: Math.round(shape.cy + delta.y)
+    };
+  }
+
+  return {
+    ...shape,
+    x: Math.round(shape.x + delta.x),
+    y: Math.round(shape.y + delta.y)
+  };
+}
+
+function resizeBounds(bounds: Bounds, handle: ResizeHandle, point: Point): Bounds {
+  const right = bounds.x + bounds.width;
+  const bottom = bounds.y + bounds.height;
+
+  if (handle === "nw") {
+    return { x: point.x, y: point.y, width: right - point.x, height: bottom - point.y };
+  }
+
+  if (handle === "ne") {
+    return { x: bounds.x, y: point.y, width: point.x - bounds.x, height: bottom - point.y };
+  }
+
+  if (handle === "sw") {
+    return { x: point.x, y: bounds.y, width: right - point.x, height: point.y - bounds.y };
+  }
+
+  return { x: bounds.x, y: bounds.y, width: point.x - bounds.x, height: point.y - bounds.y };
+}
+
+function getResizeHandles(bounds: Bounds) {
+  const size = 14;
+  const half = size / 2;
+
+  return [
+    { id: "nw" as const, x: bounds.x - half, y: bounds.y - half, cursor: "nwse-resize" },
+    { id: "ne" as const, x: bounds.x + bounds.width - half, y: bounds.y - half, cursor: "nesw-resize" },
+    { id: "sw" as const, x: bounds.x - half, y: bounds.y + bounds.height - half, cursor: "nesw-resize" },
+    { id: "se" as const, x: bounds.x + bounds.width - half, y: bounds.y + bounds.height - half, cursor: "nwse-resize" }
+  ];
+}
+
+function pointInBounds(point: Point, bounds: Bounds) {
+  return point.x >= bounds.x && point.x <= bounds.x + bounds.width && point.y >= bounds.y && point.y <= bounds.y + bounds.height;
+}
+
+function pointInShape(point: Point, shape: EditableShape) {
+  if ("shape" in shape && shape.shape === "ellipse") {
+    const dx = (point.x - shape.cx) / shape.rx;
+    const dy = (point.y - shape.cy) / shape.ry;
+    return dx * dx + dy * dy <= 1;
+  }
+
+  return pointInBounds(point, shapeToBounds(shape));
+}
+
+function getSceneShapes(scene: Scene, layer: EditorLayer): EditableShape[] {
+  if (layer === "collisions") {
+    return scene.collisions;
+  }
+
+  if (layer === "walkableAreas") {
+    return scene.walkableAreas ?? [];
+  }
+
+  return scene.depthZones;
+}
+
+function replaceSceneShape(scene: Scene, layer: EditorLayer, id: string, nextShape: EditableShape): Scene {
+  if (layer === "collisions") {
+    return {
+      ...scene,
+      collisions: scene.collisions.map((shape) => (shape.id === id ? (nextShape as CollisionShape) : shape))
+    };
+  }
+
+  if (layer === "walkableAreas") {
+    return {
+      ...scene,
+      walkableAreas: (scene.walkableAreas ?? []).map((shape) => (shape.id === id ? (nextShape as CollisionShape) : shape))
+    };
+  }
+
+  return {
+    ...scene,
+    depthZones: scene.depthZones.map((shape) => (shape.id === id ? (nextShape as Rect) : shape))
+  };
+}
+
+function removeSceneShape(scene: Scene, layer: EditorLayer, id: string): Scene {
+  if (layer === "collisions") {
+    return {
+      ...scene,
+      collisions: scene.collisions.filter((shape) => shape.id !== id)
+    };
+  }
+
+  if (layer === "walkableAreas") {
+    return {
+      ...scene,
+      walkableAreas: (scene.walkableAreas ?? []).filter((shape) => shape.id !== id)
+    };
+  }
+
+  return {
+    ...scene,
+    depthZones: scene.depthZones.filter((shape) => shape.id !== id)
+  };
+}
+
+function addSceneShape(scene: Scene, layer: EditorLayer, shape: EditableShape): Scene {
+  if (layer === "collisions") {
+    return {
+      ...scene,
+      collisions: [...scene.collisions, shape as CollisionShape]
+    };
+  }
+
+  if (layer === "walkableAreas") {
+    return {
+      ...scene,
+      walkableAreas: [...(scene.walkableAreas ?? []), shape as CollisionShape]
+    };
+  }
+
+  return {
+    ...scene,
+    depthZones: [...scene.depthZones, shape as Rect]
+  };
+}
+
+function buildShapeId(layer: EditorLayer, existingIds: Set<string>) {
+  const now = new Date();
+  const stamp = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+    "-",
+    String(now.getHours()).padStart(2, "0"),
+    String(now.getMinutes()).padStart(2, "0"),
+    String(now.getSeconds()).padStart(2, "0")
+  ].join("");
+  const prefix = layer === "collisions" ? "collision" : layer === "walkableAreas" ? "walkable-area" : "depth-zone";
+  let id = `${prefix}-${stamp}`;
+  let suffix = 2;
+
+  while (existingIds.has(id)) {
+    id = `${prefix}-${stamp}-${suffix}`;
+    suffix += 1;
+  }
+
+  return id;
+}
+
 export function WorldScene({ data }: WorldSceneProps) {
+  const [worldData, setWorldData] = useState<WorldData>(() => cloneWorldData(data));
   const [sceneId, setSceneId] = useState(data.scenes[0]?.id ?? "outside");
-  const scene = useMemo(() => data.scenes.find((item) => item.id === sceneId) ?? data.scenes[0], [data.scenes, sceneId]);
+  const scene = useMemo(() => worldData.scenes.find((item) => item.id === sceneId) ?? worldData.scenes[0], [worldData.scenes, sceneId]);
   const [position, setPosition] = useState<Point>(scene.spawn);
   const positionRef = useRef<Point>(scene.spawn);
   const keysRef = useRef<PressedKeys>(emptyKeys);
@@ -164,6 +626,11 @@ export function WorldScene({ data }: WorldSceneProps) {
   const animationElapsedRef = useRef(0);
   const [viewport, setViewport] = useState({ width: 1280, height: 720 });
   const [debug, setDebug] = useState(false);
+  const [editorLayer, setEditorLayer] = useState<EditorLayer>("collisions");
+  const [editorShape, setEditorShape] = useState<EditorShape>("rect");
+  const [editorSelection, setEditorSelection] = useState<EditorSelection>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [saveMessage, setSaveMessage] = useState("");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeModal, setActiveModal] = useState<Hotspot["contentType"] | null>(null);
   const [cameraScale, setCameraScale] = useState(DEFAULT_CAMERA_SCALE);
@@ -186,6 +653,10 @@ export function WorldScene({ data }: WorldSceneProps) {
   const playerBounds = useMemo(() => ({ width: PLAYER_HITBOX_WIDTH, height: PLAYER_HITBOX_HEIGHT }), []);
   const petalPool = useMemo(() => buildPetalPool(PETAL_COUNT), []);
 
+  useEffect(() => {
+    setWorldData((current) => normalizeWorldData(current));
+  }, []);
+
   const playerRect = useMemo(
     () => ({ id: "player", x: position.x, y: position.y, width: PLAYER_HITBOX_WIDTH, height: PLAYER_HITBOX_HEIGHT }),
     [position]
@@ -200,10 +671,10 @@ export function WorldScene({ data }: WorldSceneProps) {
     const targetY = position.y + PLAYER_HITBOX_HEIGHT / 2 - viewHeight / 2;
 
     return {
-      x: Math.max(0, Math.min(targetX, data.sceneSize.width - viewWidth)),
-      y: Math.max(0, Math.min(targetY, data.sceneSize.height - viewHeight))
+      x: Math.max(0, Math.min(targetX, worldData.sceneSize.width - viewWidth)),
+      y: Math.max(0, Math.min(targetY, worldData.sceneSize.height - viewHeight))
     };
-  }, [cameraScale, data.sceneSize.height, data.sceneSize.width, effectiveViewport.height, effectiveViewport.width, position.x, position.y]);
+  }, [cameraScale, effectiveViewport.height, effectiveViewport.width, position.x, position.y, worldData.sceneSize.height, worldData.sceneSize.width]);
 
   const playerSpriteSrc = useMemo(() => {
     const pose = isMoving ? WALK_FRAME_SEQUENCE[walkFrameIndex] : "stand";
@@ -239,7 +710,7 @@ export function WorldScene({ data }: WorldSceneProps) {
 
   const setScene = useCallback(
     (nextSceneId: string) => {
-      const nextScene = data.scenes.find((item) => item.id === nextSceneId);
+      const nextScene = worldData.scenes.find((item) => item.id === nextSceneId);
       if (!nextScene) {
         return;
       }
@@ -251,21 +722,21 @@ export function WorldScene({ data }: WorldSceneProps) {
       setMovingState(false);
       resetWalkAnimation();
     },
-    [data.scenes, resetWalkAnimation, setMovingState]
+    [resetWalkAnimation, setMovingState, worldData.scenes]
   );
 
   const tryMove = useCallback(
     (current: Point, delta: Point) => {
-      const nextX = clampPoint({ x: current.x + delta.x, y: current.y }, data.sceneSize, playerBounds);
+      const nextX = clampPoint({ x: current.x + delta.x, y: current.y }, worldData.sceneSize, playerBounds);
       const xRect = { id: "player", x: nextX.x, y: nextX.y, width: PLAYER_HITBOX_WIDTH, height: PLAYER_HITBOX_HEIGHT };
-      const afterX = isBlocked(xRect, scene.collisions) ? current : nextX;
+      const afterX = isBlocked(xRect, scene.collisions) || !isInsideWalkableArea(xRect, scene.walkableAreas) ? current : nextX;
 
-      const nextY = clampPoint({ x: afterX.x, y: afterX.y + delta.y }, data.sceneSize, playerBounds);
+      const nextY = clampPoint({ x: afterX.x, y: afterX.y + delta.y }, worldData.sceneSize, playerBounds);
       const yRect = { id: "player", x: nextY.x, y: nextY.y, width: PLAYER_HITBOX_WIDTH, height: PLAYER_HITBOX_HEIGHT };
 
-      return isBlocked(yRect, scene.collisions) ? afterX : nextY;
+      return isBlocked(yRect, scene.collisions) || !isInsideWalkableArea(yRect, scene.walkableAreas) ? afterX : nextY;
     },
-    [data.sceneSize, playerBounds, scene.collisions]
+    [playerBounds, scene.collisions, scene.walkableAreas, worldData.sceneSize]
   );
 
   const activateHotspot = useCallback(
@@ -315,7 +786,19 @@ export function WorldScene({ data }: WorldSceneProps) {
       const key = event.key.toLowerCase();
       const direction = keyToDirection(key);
 
-      if (direction && controlMode === "laptop") {
+      if (pressed && debug && editorSelection && (key === "delete" || key === "backspace")) {
+        event.preventDefault();
+        setWorldData((current) => ({
+          ...current,
+          scenes: current.scenes.map((item) => (item.id === scene.id ? removeSceneShape(item, editorSelection.layer, editorSelection.id) : item))
+        }));
+        setEditorSelection(null);
+        setSaveState("idle");
+        setSaveMessage("Unsaved changes");
+        return;
+      }
+
+      if (direction && controlMode === "laptop" && !debug) {
         const next = { ...keysRef.current, [direction]: pressed };
         event.preventDefault();
 
@@ -327,7 +810,7 @@ export function WorldScene({ data }: WorldSceneProps) {
         keysRef.current = next;
       }
 
-      if (pressed && (key === "e" || key === "enter") && nearbyHotspot) {
+      if (pressed && !debug && (key === "e" || key === "enter") && nearbyHotspot) {
         event.preventDefault();
         activateHotspot(nearbyHotspot);
       }
@@ -347,7 +830,7 @@ export function WorldScene({ data }: WorldSceneProps) {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [activateHotspot, controlMode, nearbyHotspot]);
+  }, [activateHotspot, controlMode, debug, editorSelection, nearbyHotspot, scene.id]);
 
   useEffect(() => {
     keysRef.current = emptyKeys;
@@ -367,7 +850,7 @@ export function WorldScene({ data }: WorldSceneProps) {
       const deltaSeconds = Math.min((time - last) / 1000, 0.05);
       lastFrameRef.current = time;
 
-      if (!activeModal && !drawerOpen) {
+      if (!activeModal && !drawerOpen && !debug) {
         const keys = controlMode === "laptop" ? keysRef.current : emptyKeys;
         let dx = Number(keys.right) - Number(keys.left);
         let dy = Number(keys.down) - Number(keys.up);
@@ -429,10 +912,10 @@ export function WorldScene({ data }: WorldSceneProps) {
 
     frame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frame);
-  }, [activeModal, controlMode, drawerOpen, resetWalkAnimation, setFacingState, setMovingState, tryMove]);
+  }, [activeModal, controlMode, debug, drawerOpen, resetWalkAnimation, setFacingState, setMovingState, tryMove]);
 
   function beginDrag(event: React.PointerEvent<HTMLDivElement>) {
-    if (controlMode !== "mobile" || event.pointerType === "mouse") {
+    if (debug || controlMode !== "mobile" || event.pointerType === "mouse") {
       return;
     }
 
@@ -444,7 +927,7 @@ export function WorldScene({ data }: WorldSceneProps) {
   }
 
   function updateDrag(event: React.PointerEvent<HTMLDivElement>) {
-    if (controlMode !== "mobile" || event.pointerType === "mouse" || !event.currentTarget.hasPointerCapture(event.pointerId)) {
+    if (debug || controlMode !== "mobile" || event.pointerType === "mouse" || !event.currentTarget.hasPointerCapture(event.pointerId)) {
       return;
     }
 
@@ -465,6 +948,50 @@ export function WorldScene({ data }: WorldSceneProps) {
     dragRef.current = null;
     dragOriginRef.current = null;
   }
+
+  const updateCurrentScene = useCallback((updater: (currentScene: Scene) => Scene) => {
+    setWorldData((current) => ({
+      ...current,
+      scenes: current.scenes.map((item) => (item.id === sceneId ? updater(item) : item))
+    }));
+    setSaveState("idle");
+    setSaveMessage("Unsaved changes");
+  }, [sceneId]);
+
+  const deleteSelectedShape = useCallback(() => {
+    if (!editorSelection) {
+      return;
+    }
+
+    updateCurrentScene((currentScene) => removeSceneShape(currentScene, editorSelection.layer, editorSelection.id));
+    setEditorSelection(null);
+  }, [editorSelection, updateCurrentScene]);
+
+  const saveWorldData = useCallback(async () => {
+    setSaveState("saving");
+    setSaveMessage("Saving...");
+
+    try {
+      const response = await fetch("/api/world-editor", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(worldData)
+      });
+
+      if (!response.ok) {
+        const error = (await response.json().catch(() => null)) as { error?: string } | null;
+        throw new Error(error?.error ?? "Unable to save world.json");
+      }
+
+      setSaveState("saved");
+      setSaveMessage("Saved to world.json");
+    } catch (error) {
+      setSaveState("error");
+      setSaveMessage(error instanceof Error ? error.message : "Unable to save world.json");
+    }
+  }, [worldData]);
 
   return (
     <section className="fixed inset-0 bg-[#1d5f48] text-ink">
@@ -488,22 +1015,34 @@ export function WorldScene({ data }: WorldSceneProps) {
             : undefined
         }
       >
-      <div
+        <div
         className="absolute left-0 top-0 origin-top-left"
         style={{
-          width: data.sceneSize.width,
-          height: data.sceneSize.height,
+          width: worldData.sceneSize.width,
+          height: worldData.sceneSize.height,
           transform: `translate3d(${-camera.x * cameraScale}px, ${-camera.y * cameraScale}px, 0) scale(${cameraScale})`
         }}
       >
         <SceneBackdrop scene={scene} />
-        {scene.id === "outside" ? <FallingPetals petals={petalPool} sceneSize={data.sceneSize} /> : null}
-        {scene.id === "outside" && playerInDepthZone ? <SceneForegroundOverlay scene={scene} behindPlayer /> : null}
-        {debug ? <DebugOverlay scene={scene} /> : null}
+        {scene.id === "outside" ? <FallingPetals petals={petalPool} sceneSize={worldData.sceneSize} /> : null}
+        {playerInDepthZone ? <SceneForegroundOverlay scene={scene} behindPlayer /> : null}
+        {debug ? (
+          <DebugEditorOverlay
+            activeLayer={editorLayer}
+            cameraScale={cameraScale}
+            scene={scene}
+            sceneSize={worldData.sceneSize}
+            selected={editorSelection}
+            shapeKind={editorShape}
+            onSelect={setEditorSelection}
+            onUpdateScene={updateCurrentScene}
+          />
+        ) : null}
         {scene.hotspots.map((hotspot) => (
           <button
             aria-label={hotspot.label}
-            className="absolute z-20 border-4 border-transparent bg-transparent transition focus-visible:border-wheat"
+            className="absolute z-20 border-4 border-transparent bg-transparent transition focus-visible:border-wheat disabled:pointer-events-none"
+            disabled={debug}
             key={hotspot.id}
             onClick={(event) => {
               event.stopPropagation();
@@ -513,6 +1052,7 @@ export function WorldScene({ data }: WorldSceneProps) {
             type="button"
           />
         ))}
+        {scene.id === "outside" && scene.pigeons?.length ? <PigeonLayer pigeons={scene.pigeons} /> : null}
         <div
           aria-label="Player"
           className="pointer-events-none absolute z-30 select-none"
@@ -544,7 +1084,7 @@ export function WorldScene({ data }: WorldSceneProps) {
             width={PLAYER_SPRITE_WIDTH}
           />
         </div>
-        {scene.id !== "outside" || !playerInDepthZone ? <SceneForegroundOverlay scene={scene} /> : null}
+        {!playerInDepthZone ? <SceneForegroundOverlay scene={scene} /> : null}
       </div>
       </div>
 
@@ -560,6 +1100,18 @@ export function WorldScene({ data }: WorldSceneProps) {
           setActiveModal(type);
         }}
         onToggleDebug={() => setDebug((value) => !value)}
+        editorLayer={editorLayer}
+        editorShape={editorShape}
+        saveMessage={saveMessage}
+        saveState={saveState}
+        selectedShapeId={editorSelection?.id ?? null}
+        onDeleteSelected={deleteSelectedShape}
+        onSaveWorldData={saveWorldData}
+        onSetEditorLayer={(layer) => {
+          setEditorLayer(layer);
+          setEditorSelection(null);
+        }}
+        onSetEditorShape={setEditorShape}
         onToggleControlMode={
           SHOW_CONTROL_MODE_TOGGLE
             ? () => setControlModeOverride((mode) => ((mode ?? detectedControlMode) === "laptop" ? "mobile" : "laptop"))
@@ -584,9 +1136,9 @@ function FallingPetals({ petals, sceneSize }: { petals: FallingPetal[]; sceneSiz
     <div aria-hidden className="world-petals-layer absolute inset-0 z-[27] overflow-hidden">
       {petals.map((petal) => {
         const style = {
-          left: `${petal.left}%`,
-          width: `${petal.size}px`,
-          height: `${petal.size}px`,
+          left: `${petal.left.toFixed(4)}%`,
+          width: `${petal.size.toFixed(4)}px`,
+          height: `${petal.size.toFixed(4)}px`,
           "--petal-start-y": `${-Math.round(80 + petal.size)}px`,
           "--petal-fall-distance": `${sceneSize.height + 180}px`,
           "--petal-fall-duration": `${petal.fallDuration.toFixed(2)}s`,
@@ -614,38 +1166,193 @@ function FallingPetals({ petals, sceneSize }: { petals: FallingPetal[]; sceneSiz
   );
 }
 
+function PigeonLayer({ pigeons }: { pigeons: PigeonConfig[] }) {
+  const [spriteData, setSpriteData] = useState<PigeonSpriteData | null>(null);
+  const [elapsed, setElapsed] = useState(0);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const startedAtRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    let active = true;
+
+    fetch("/art/Pidgeon Sprite Sheet (1).json")
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: PigeonSpriteData | null) => {
+        if (active && data) {
+          setSpriteData(data);
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setSpriteData(null);
+        }
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+    function syncReducedMotion() {
+      setReducedMotion(media.matches);
+    }
+
+    syncReducedMotion();
+    media.addEventListener("change", syncReducedMotion);
+
+    return () => media.removeEventListener("change", syncReducedMotion);
+  }, []);
+
+  useEffect(() => {
+    if (!spriteData || reducedMotion) {
+      return;
+    }
+
+    let frame = 0;
+
+    function tick(time: number) {
+      startedAtRef.current ??= time;
+      setElapsed(time - startedAtRef.current);
+      frame = window.requestAnimationFrame(tick);
+    }
+
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [reducedMotion, spriteData]);
+
+  const framesByAnimation = useMemo(() => {
+    if (!spriteData) {
+      return null;
+    }
+
+    return {
+      Idle: getPigeonAnimationFrames(spriteData, "Idle"),
+      Movement: getPigeonAnimationFrames(spriteData, "Movement"),
+      Peck: getPigeonAnimationFrames(spriteData, "Peck"),
+      Flight: getPigeonAnimationFrames(spriteData, "Flight")
+    };
+  }, [spriteData]);
+
+  if (!spriteData || !framesByAnimation) {
+    return null;
+  }
+
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0">
+      {pigeons.map((pigeon) => {
+        const snapshot = reducedMotion
+          ? {
+              animation: "Idle" as const,
+              facing: "right" as const,
+              frameIndex: 0,
+              phase: "idle" as const,
+              x: pigeon.x,
+              y: pigeon.y
+            }
+          : getPigeonSnapshot(pigeon, elapsed, framesByAnimation);
+        const frames = framesByAnimation[snapshot.animation];
+        const frame = frames[snapshot.frameIndex] ?? frames[0];
+        const width = frame.frame.w * pigeon.scale;
+        const height = frame.frame.h * pigeon.scale;
+        const sheetWidth = spriteData.meta.size.w * pigeon.scale;
+        const sheetHeight = spriteData.meta.size.h * pigeon.scale;
+        const isFlying = snapshot.phase === "flight";
+
+        return (
+          <div
+            className="absolute select-none"
+            key={pigeon.id}
+            style={{
+              left: snapshot.x - width / 2,
+              top: snapshot.y - height,
+              width,
+              height,
+              zIndex: isFlying ? 29 : 28
+            }}
+          >
+            {!isFlying ? (
+              <div
+                className="absolute left-1/2 rounded-full bg-black/25 blur-[1px]"
+                style={{
+                  bottom: 8 * pigeon.scale,
+                  height: Math.max(4, 5 * pigeon.scale),
+                  transform: "translateX(-50%)",
+                  width: Math.max(14, 18 * pigeon.scale)
+                }}
+              />
+            ) : null}
+            <div
+              className="relative h-full w-full"
+              style={{
+                backgroundImage: 'url("/art/Pidgeon Sprite Sheet.png")',
+                backgroundPosition: `${-frame.frame.x * pigeon.scale}px ${-frame.frame.y * pigeon.scale}px`,
+                backgroundRepeat: "no-repeat",
+                backgroundSize: `${sheetWidth}px ${sheetHeight}px`,
+                imageRendering: "pixelated",
+                transform: snapshot.facing === "left" ? "scaleX(-1)" : undefined,
+                transformOrigin: "center bottom"
+              }}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function GameHud({
   debug,
   drawerOpen,
+  editorLayer,
+  editorShape,
   nearbyHotspot,
   onActivateHotspot,
   onCloseDrawer,
+  onDeleteSelected,
   onOpenDrawer,
   onOpenModal,
+  onSaveWorldData,
+  onSetEditorLayer,
+  onSetEditorShape,
   onToggleControlMode,
   onToggleDebug,
   onZoomIn,
   onZoomOut,
   controlMode,
   controlModeIsOverridden,
+  saveMessage,
+  saveState,
   sceneName,
+  selectedShapeId,
   zoomInDisabled,
   zoomOutDisabled
 }: {
   debug: boolean;
   drawerOpen: boolean;
+  editorLayer: EditorLayer;
+  editorShape: EditorShape;
   nearbyHotspot?: Hotspot;
   onActivateHotspot: () => void;
   onCloseDrawer: () => void;
+  onDeleteSelected: () => void;
   onOpenDrawer: () => void;
   onOpenModal: (type: NonNullable<Hotspot["contentType"]>) => void;
+  onSaveWorldData: () => void;
+  onSetEditorLayer: (layer: EditorLayer) => void;
+  onSetEditorShape: (shape: EditorShape) => void;
   onToggleControlMode?: () => void;
   onToggleDebug: () => void;
   onZoomIn: () => void;
   onZoomOut: () => void;
   controlMode: ControlMode;
   controlModeIsOverridden: boolean;
+  saveMessage: string;
+  saveState: "idle" | "saving" | "saved" | "error";
   sceneName: string;
+  selectedShapeId: string | null;
   zoomInDisabled: boolean;
   zoomOutDisabled: boolean;
 }) {
@@ -670,7 +1377,7 @@ function GameHud({
         <button
           aria-label="Toggle debug"
           aria-pressed={debug}
-          className="pointer-events-auto hidden h-14 w-14 place-items-center border-[4px] border-[#5f2f20] bg-[#f6c879] shadow-[0_5px_0_#9a4f2f] sm:grid"
+          className={`pointer-events-auto hidden h-14 w-14 place-items-center border-[4px] border-[#5f2f20] shadow-[0_5px_0_#9a4f2f] sm:grid ${debug ? "bg-[#ffdf5a]" : "bg-[#f6c879]"}`}
           onClick={onToggleDebug}
           type="button"
         >
@@ -715,7 +1422,85 @@ function GameHud({
         </div>
       </div>
 
-      {nearbyHotspot ? (
+      {debug ? (
+        <div className="fixed bottom-4 left-4 z-50 w-[min(360px,calc(100vw-32px))] border-[4px] border-[#5f2f20] bg-[#fff0b9] p-3 font-body text-[#5f2f20] shadow-[0_6px_0_#9a4f2f]">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <div className="text-lg font-black leading-none text-[#8f3f3a]">Debug editor</div>
+              <div className="mt-1 text-sm font-black">{selectedShapeId ? selectedShapeId : "Drag on map to draw"}</div>
+            </div>
+            <button
+              aria-label="Save world data"
+              className="grid h-10 w-10 place-items-center border-[3px] border-[#5f2f20] bg-[#f6c879] disabled:opacity-55"
+              disabled={saveState === "saving"}
+              onClick={onSaveWorldData}
+              type="button"
+            >
+              <Save aria-hidden size={20} strokeWidth={3} />
+            </button>
+          </div>
+
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <button
+              className={`border-[3px] border-[#5f2f20] px-2 py-2 text-sm font-black ${editorLayer === "collisions" ? "bg-red-300" : "bg-[#f7d891]"}`}
+              onClick={() => onSetEditorLayer("collisions")}
+              type="button"
+            >
+              Red collisions
+            </button>
+            <button
+              className={`border-[3px] border-[#5f2f20] px-2 py-2 text-sm font-black ${editorLayer === "walkableAreas" ? "bg-green-300" : "bg-[#f7d891]"}`}
+              onClick={() => onSetEditorLayer("walkableAreas")}
+              type="button"
+            >
+              Walkable
+            </button>
+            <button
+              className={`border-[3px] border-[#5f2f20] px-2 py-2 text-sm font-black ${editorLayer === "depthZones" ? "bg-yellow-300" : "bg-[#f7d891]"}`}
+              onClick={() => onSetEditorLayer("depthZones")}
+              type="button"
+            >
+              Yellow zones
+            </button>
+          </div>
+
+          {editorLayer !== "depthZones" ? (
+            <div className="mt-2 grid grid-cols-2 gap-2">
+              <button
+                className={`border-[3px] border-[#5f2f20] px-2 py-2 text-sm font-black ${editorShape === "rect" ? (editorLayer === "walkableAreas" ? "bg-green-300" : "bg-red-300") : "bg-[#f7d891]"}`}
+                onClick={() => onSetEditorShape("rect")}
+                type="button"
+              >
+                Rectangle
+              </button>
+              <button
+                className={`border-[3px] border-[#5f2f20] px-2 py-2 text-sm font-black ${editorShape === "ellipse" ? (editorLayer === "walkableAreas" ? "bg-green-300" : "bg-red-300") : "bg-[#f7d891]"}`}
+                onClick={() => onSetEditorShape("ellipse")}
+                type="button"
+              >
+                Ellipse
+              </button>
+            </div>
+          ) : null}
+
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              className="flex h-10 items-center gap-2 border-[3px] border-[#5f2f20] bg-[#f7d891] px-3 text-sm font-black disabled:opacity-55"
+              disabled={!selectedShapeId}
+              onClick={onDeleteSelected}
+              type="button"
+            >
+              <Trash2 aria-hidden size={18} strokeWidth={3} />
+              Delete
+            </button>
+            {saveMessage ? (
+              <span className={`text-sm font-black ${saveState === "error" ? "text-red-700" : "text-[#5f2f20]"}`}>{saveMessage}</span>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
+
+      {!debug && nearbyHotspot ? (
         <button
           className="fixed bottom-8 left-1/2 z-40 min-w-[260px] -translate-x-1/2 border-[5px] border-[#5f2f20] bg-[#fff0b9] px-6 py-4 font-body text-2xl font-black text-[#8f3f3a] shadow-[0_7px_0_#9a4f2f] transition hover:-translate-y-1"
           onClick={onActivateHotspot}
@@ -769,25 +1554,17 @@ function GameHud({
 function SceneBackdrop({ scene }: { scene: Scene }) {
   if (scene.id === "inside") {
     return (
-      <div className="absolute inset-0 overflow-hidden bg-[#c57d55]">
-        <div
-          className="absolute left-0 top-0 origin-top-left"
-          style={{
-            width: LEGACY_SCENE_WIDTH,
-            height: LEGACY_SCENE_HEIGHT,
-            transform: `scale(${WORLD_SCENE_WIDTH / LEGACY_SCENE_WIDTH}, ${WORLD_SCENE_HEIGHT / LEGACY_SCENE_HEIGHT})`
-          }}
-        >
-          <div className="absolute inset-x-0 top-0 h-[150px] border-b-[6px] border-[#5f2f20] bg-[#9d563f]" />
-          <div className="absolute inset-x-0 bottom-0 h-[120px] bg-[#b06c49]" />
-          <div className="absolute left-[190px] top-[230px] h-[420px] w-[140px] border-[6px] border-[#5f2f20] bg-[#724931]" />
-          <div className="absolute left-[360px] top-[250px] h-[220px] w-[390px] border-[6px] border-[#5f2f20] bg-[#7b5236]" />
-          <div className="absolute left-[440px] top-[170px] h-[120px] w-[190px] border-[6px] border-[#5f2f20] bg-[#273048]" />
-          <div className="absolute left-[1160px] top-[230px] h-[320px] w-[260px] border-[6px] border-[#5f2f20] bg-[#fff8dc]" />
-          <div className="absolute left-[1215px] top-[295px] h-[145px] w-[150px] border-[5px] border-[#5f2f20] bg-[#9bd4d8]" />
-          <div className="absolute left-[780px] top-[555px] h-[165px] w-[250px] border-[5px] border-[#5f2f20] bg-[#f2bd6b]" />
-          <div className="absolute bottom-[70px] left-[810px] h-[170px] w-[220px] border-[6px] border-[#5f2f20] bg-[#e4c66d]" />
-        </div>
+      <div className="absolute inset-0 bg-[#c57d55]">
+        <Image
+          alt=""
+          className="absolute inset-0 h-full w-full select-none object-fill"
+          draggable={false}
+          fill
+          priority
+          src="/art/world_house_backgroud.png"
+          style={{ imageRendering: "pixelated" }}
+          unoptimized
+        />
       </div>
     );
   }
@@ -809,6 +1586,33 @@ function SceneBackdrop({ scene }: { scene: Scene }) {
 }
 
 function SceneForegroundOverlay({ scene, behindPlayer = false }: { scene: Scene; behindPlayer?: boolean }) {
+  if (scene.id === "inside") {
+    return (
+      <div className={behindPlayer ? "pointer-events-none absolute inset-0 z-[25]" : "pointer-events-none absolute inset-0 z-[35]"}>
+        <Image
+          alt=""
+          className="absolute inset-0 h-full w-full select-none object-fill"
+          draggable={false}
+          fill
+          priority
+          src="/art/world_house_backgroud_ontop.png"
+          style={{ imageRendering: "pixelated" }}
+          unoptimized
+        />
+        <Image
+          alt=""
+          className="world-house-glow absolute inset-0 h-full w-full select-none object-fill"
+          draggable={false}
+          fill
+          priority
+          src="/art/world_house_backgroud_ontop_glow.png"
+          style={{ imageRendering: "pixelated" }}
+          unoptimized
+        />
+      </div>
+    );
+  }
+
   if (scene.id !== "outside") {
     return null;
   }
@@ -829,38 +1633,230 @@ function SceneForegroundOverlay({ scene, behindPlayer = false }: { scene: Scene;
   );
 }
 
-function DebugOverlay({ scene }: { scene: Scene }) {
+function DebugEditorOverlay({
+  activeLayer,
+  cameraScale,
+  scene,
+  sceneSize,
+  selected,
+  shapeKind,
+  onSelect,
+  onUpdateScene
+}: {
+  activeLayer: EditorLayer;
+  cameraScale: number;
+  scene: Scene;
+  sceneSize: { width: number; height: number };
+  selected: EditorSelection;
+  shapeKind: EditorShape;
+  onSelect: (selection: EditorSelection) => void;
+  onUpdateScene: (updater: (currentScene: Scene) => Scene) => void;
+}) {
+  const draftRef = useRef<EditorDraft | null>(null);
+
+  function eventToWorldPoint(event: React.PointerEvent<HTMLDivElement>): Point {
+    const rect = event.currentTarget.getBoundingClientRect();
+    return roundPoint({
+      x: Math.max(0, Math.min((event.clientX - rect.left) / cameraScale, sceneSize.width)),
+      y: Math.max(0, Math.min((event.clientY - rect.top) / cameraScale, sceneSize.height))
+    });
+  }
+
+  function updateShape(layer: EditorLayer, id: string, nextShape: EditableShape) {
+    onUpdateScene((currentScene) => replaceSceneShape(currentScene, layer, id, nextShape));
+  }
+
+  function getShapeById(layer: EditorLayer, id: string) {
+    return getSceneShapes(scene, layer).find((shape) => shape.id === id) ?? null;
+  }
+
+  function hitTestHandle(point: Point) {
+    if (!selected) {
+      return null;
+    }
+
+    const shape = getShapeById(selected.layer, selected.id);
+
+    if (!shape) {
+      return null;
+    }
+
+    return getResizeHandles(shapeToBounds(shape)).find((handle) => pointInBounds(point, { x: handle.x, y: handle.y, width: 14, height: 14 })) ?? null;
+  }
+
+  function hitTestShape(point: Point) {
+    const shapes = getSceneShapes(scene, activeLayer);
+
+    for (let index = shapes.length - 1; index >= 0; index -= 1) {
+      if (pointInShape(point, shapes[index])) {
+        return shapes[index];
+      }
+    }
+
+    return null;
+  }
+
+  function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+    if (event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const point = eventToWorldPoint(event);
+    const handle = hitTestHandle(point);
+    const target = event.currentTarget;
+    target.setPointerCapture(event.pointerId);
+
+    if (handle && selected) {
+      const shape = getShapeById(selected.layer, selected.id);
+
+      if (shape) {
+        draftRef.current = {
+          mode: "resize",
+          layer: selected.layer,
+          id: selected.id,
+          handle: handle.id,
+          originalBounds: shapeToBounds(shape)
+        };
+      }
+
+      return;
+    }
+
+    const hitShape = hitTestShape(point);
+
+    if (hitShape) {
+      onSelect({ layer: activeLayer, id: hitShape.id });
+      draftRef.current = {
+        mode: "move",
+        layer: activeLayer,
+        id: hitShape.id,
+        start: point,
+        original: hitShape
+      };
+      return;
+    }
+
+    const allIds = new Set(scene.collisions.map((shape) => shape.id).concat((scene.walkableAreas ?? []).map((shape) => shape.id), scene.depthZones.map((zone) => zone.id)));
+    const id = buildShapeId(activeLayer, allIds);
+    const nextShape = boundsToShape(id, { x: point.x, y: point.y, width: 1, height: 1 }, activeLayer, activeLayer === "depthZones" ? "rect" : shapeKind);
+
+    onUpdateScene((currentScene) => addSceneShape(currentScene, activeLayer, nextShape));
+    onSelect({ layer: activeLayer, id });
+    draftRef.current = {
+      mode: "draw",
+      layer: activeLayer,
+      id,
+      start: point
+    };
+  }
+
+  function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+    const draft = draftRef.current;
+
+    if (!draft || !event.currentTarget.hasPointerCapture(event.pointerId)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const point = eventToWorldPoint(event);
+
+    if (draft.mode === "draw") {
+      updateShape(draft.layer, draft.id, boundsToShape(draft.id, { x: draft.start.x, y: draft.start.y, width: point.x - draft.start.x, height: point.y - draft.start.y }, draft.layer, draft.layer === "depthZones" ? "rect" : shapeKind));
+      return;
+    }
+
+    if (draft.mode === "move") {
+      updateShape(draft.layer, draft.id, moveShape(draft.original, { x: point.x - draft.start.x, y: point.y - draft.start.y }));
+      return;
+    }
+
+    const nextBounds = resizeBounds(draft.originalBounds, draft.handle, point);
+    const currentShape = getShapeById(draft.layer, draft.id);
+    const nextKind = currentShape && "shape" in currentShape && currentShape.shape === "ellipse" ? "ellipse" : "rect";
+
+    updateShape(draft.layer, draft.id, boundsToShape(draft.id, nextBounds, draft.layer, nextKind));
+  }
+
+  function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+    event.preventDefault();
+    event.stopPropagation();
+    draftRef.current = null;
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  const selectedShape = selected ? getShapeById(selected.layer, selected.id) : null;
+  const selectedBounds = selectedShape ? shapeToBounds(selectedShape) : null;
+
   return (
-    <>
-      {scene.collisions.map((collision) =>
+    <div
+      className="absolute inset-0 z-[38] cursor-crosshair select-none"
+      onPointerCancel={handlePointerUp}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      style={{ touchAction: "none" }}
+    >
+      {scene.collisions.map((collision, index) =>
         isEllipseCollision(collision) ? (
           <div
-            className="pointer-events-none absolute z-40 rounded-full border-4 border-red-700 bg-red-500/20"
-            key={collision.id}
+            className={`pointer-events-none absolute rounded-full border-4 ${selected?.layer === "collisions" && selected.id === collision.id ? "border-white bg-red-500/35 outline outline-4 outline-red-700" : "border-red-700 bg-red-500/20"}`}
+            key={`${collision.id}-${index}`}
             style={{ left: collision.cx - collision.rx, top: collision.cy - collision.ry, width: collision.rx * 2, height: collision.ry * 2 }}
           />
         ) : (
           <div
-            className="pointer-events-none absolute z-40 border-4 border-red-700 bg-red-500/20"
-            key={collision.id}
+            className={`pointer-events-none absolute border-4 ${selected?.layer === "collisions" && selected.id === collision.id ? "border-white bg-red-500/35 outline outline-4 outline-red-700" : "border-red-700 bg-red-500/20"}`}
+            key={`${collision.id}-${index}`}
             style={{ left: collision.x, top: collision.y, width: collision.width, height: collision.height }}
           />
         )
       )}
-      {scene.hotspots.map((rect) => (
+      {scene.hotspots.map((rect, index) => (
         <div
-          className="pointer-events-none absolute z-40 border-4 border-blue-700 bg-blue-500/20"
-          key={rect.id}
+          className="pointer-events-none absolute border-4 border-blue-700 bg-blue-500/20"
+          key={`${rect.id}-${index}`}
           style={{ left: rect.x, top: rect.y, width: rect.width, height: rect.height }}
         />
       ))}
-      {scene.depthZones.map((zone) => (
+      {(scene.walkableAreas ?? []).map((area, index) =>
+        isEllipseCollision(area) ? (
+          <div
+            className={`pointer-events-none absolute rounded-full border-4 ${selected?.layer === "walkableAreas" && selected.id === area.id ? "border-white bg-green-400/25 outline outline-4 outline-green-700" : "border-green-700 bg-green-400/15"}`}
+            key={`${area.id}-${index}`}
+            style={{ left: area.cx - area.rx, top: area.cy - area.ry, width: area.rx * 2, height: area.ry * 2 }}
+          />
+        ) : (
+          <div
+            className={`pointer-events-none absolute border-4 ${selected?.layer === "walkableAreas" && selected.id === area.id ? "border-white bg-green-400/25 outline outline-4 outline-green-700" : "border-green-700 bg-green-400/15"}`}
+            key={`${area.id}-${index}`}
+            style={{ left: area.x, top: area.y, width: area.width, height: area.height }}
+          />
+        )
+      )}
+      {scene.depthZones.map((zone, index) => (
         <div
-          className="pointer-events-none absolute z-40 border-4 border-yellow-500 bg-yellow-300/20"
-          key={zone.id}
+          className={`pointer-events-none absolute border-4 ${selected?.layer === "depthZones" && selected.id === zone.id ? "border-white bg-yellow-300/35 outline outline-4 outline-yellow-500" : "border-yellow-500 bg-yellow-300/20"}`}
+          key={`${zone.id}-${index}`}
           style={{ left: zone.x, top: zone.y, width: zone.width, height: zone.height }}
         />
       ))}
-    </>
+      {selectedBounds
+        ? getResizeHandles(selectedBounds).map((handle) => (
+            <div
+              className="pointer-events-none absolute h-[14px] w-[14px] border-2 border-[#5f2f20] bg-white"
+              key={handle.id}
+              style={{ left: handle.x, top: handle.y }}
+            />
+          ))
+        : null}
+    </div>
   );
 }

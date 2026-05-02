@@ -19,7 +19,7 @@ export function isEllipseCollision(collision: CollisionShape): collision is Elli
   );
 }
 
-function rectIntersectsEllipse(rect: Rect, ellipse: EllipseCollision) {
+export function rectIntersectsEllipse(rect: Rect, ellipse: EllipseCollision) {
   const closestX = Math.max(rect.x, Math.min(ellipse.cx, rect.x + rect.width));
   const closestY = Math.max(rect.y, Math.min(ellipse.cy, rect.y + rect.height));
   const dx = (closestX - ellipse.cx) / ellipse.rx;
@@ -30,6 +30,22 @@ function rectIntersectsEllipse(rect: Rect, ellipse: EllipseCollision) {
 
 export function isBlocked(player: Rect, collisions: CollisionShape[]) {
   return collisions.some((collision) => (isEllipseCollision(collision) ? rectIntersectsEllipse(player, collision) : rectsOverlap(player, collision)));
+}
+
+export function isInsideWalkableArea(player: Rect, walkableAreas: CollisionShape[] = []) {
+  if (walkableAreas.length === 0) {
+    return true;
+  }
+
+  const playerCenter = {
+    id: "player-center",
+    x: player.x + player.width / 2,
+    y: player.y + player.height / 2,
+    width: 1,
+    height: 1
+  };
+
+  return walkableAreas.some((area) => (isEllipseCollision(area) ? rectIntersectsEllipse(playerCenter, area) : rectsOverlap(playerCenter, area)));
 }
 
 export function clampPoint(point: Point, bounds: { width: number; height: number }, player: { width: number; height: number }) {

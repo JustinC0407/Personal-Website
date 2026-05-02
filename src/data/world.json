@@ -13,27 +13,392 @@
         "y": 604
       },
       "collisions": [
-        { "id": "north-blossom-line", "shape": "rect", "x": 0, "y": 0, "width": 1600, "height": 28 },
-        { "id": "west-blossom-line", "shape": "rect", "x": 0, "y": 0, "width": 24, "height": 900 },
-        { "id": "east-blossom-line", "shape": "rect", "x": 1576, "y": 0, "width": 24, "height": 900 },
-        { "id": "south-blossom-line", "shape": "rect", "x": 0, "y": 876, "width": 1600, "height": 24 },
-        { "id": "house-upper-body", "shape": "ellipse", "cx": 1050, "cy": 200, "rx": 175, "ry": 100 },
-        { "id": "bridge-tree-roots", "shape": "rect", "x": 82, "y": 536, "width": 104, "height": 110 },
-        { "id": "center-tree-roots", "shape": "rect", "x": 586, "y": 325, "width": 92, "height": 60},
-        { "id": "house-tree-roots", "shape": "ellipse", "cx": 1455, "cy": 476, "rx": 50, "ry": 30 },
-        { "id": "house-2-tree-roots", "shape": "ellipse", "cx": 1555, "cy": 310, "rx": 30, "ry": 30 },
-        { "id": "house-3-tree-roots", "shape": "ellipse", "cx": 1375, "cy": 160, "rx": 40, "ry": 30 },
-        { "id": "house-left-tree-roots", "shape": "ellipse", "cx": 775, "cy": 140, "rx": 40, "ry": 30 },
-        { "id": "left-up-tree-roots", "shape": "ellipse", "cx": 170, "cy": 160, "rx": 40, "ry": 10 },
-        { "id": "lower-left-tree-roots", "shape": "rect", "x": 104, "y": 734, "width": 86, "height": 110 },
-        { "id": "upper-lake", "shape": "ellipse", "cx": 486, "cy": 252, "rx": 154, "ry": 38 },
-        { "id": "lower-lake", "shape": "ellipse", "cx": 355, "cy": 530, "rx": 160, "ry": 160 },
-        { "id": "right-tulip-bed", "shape": "rect", "x": 942, "y": 420, "width": 384, "height": 250 },
-        { "id": "lower-tulip-strip", "shape": "rect", "x": 596, "y": 548, "width": 104, "height": 206 }
+        {
+          "id": "north-blossom-line",
+          "shape": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 1600,
+          "height": 28
+        },
+        {
+          "id": "west-blossom-line",
+          "shape": "rect",
+          "x": 0,
+          "y": 0,
+          "width": 24,
+          "height": 900
+        },
+        {
+          "id": "east-blossom-line",
+          "shape": "rect",
+          "x": 1576,
+          "y": 0,
+          "width": 24,
+          "height": 900
+        },
+        {
+          "id": "south-blossom-line",
+          "shape": "rect",
+          "x": 0,
+          "y": 876,
+          "width": 1600,
+          "height": 24
+        },
+        {
+          "id": "house-upper-body",
+          "shape": "ellipse",
+          "cx": 1056,
+          "cy": 258,
+          "rx": 175,
+          "ry": 43
+        },
+        {
+          "id": "house-2-tree-roots",
+          "shape": "ellipse",
+          "cx": 1555,
+          "cy": 310,
+          "rx": 30,
+          "ry": 30
+        },
+        {
+          "id": "left-up-tree-roots",
+          "shape": "ellipse",
+          "cx": 170,
+          "cy": 160,
+          "rx": 40,
+          "ry": 10
+        },
+        {
+          "id": "lower-left-tree-roots",
+          "shape": "rect",
+          "x": 104,
+          "y": 734,
+          "width": 86,
+          "height": 110
+        },
+        {
+          "id": "upper-lake",
+          "shape": "ellipse",
+          "cx": 450,
+          "cy": 253,
+          "rx": 145,
+          "ry": 46
+        },
+        {
+          "id": "lower-lake",
+          "shape": "ellipse",
+          "cx": 355,
+          "cy": 530,
+          "rx": 160,
+          "ry": 160
+        },
+        {
+          "id": "right-tulip-bed",
+          "shape": "rect",
+          "x": 942,
+          "y": 420,
+          "width": 384,
+          "height": 250
+        },
+        {
+          "id": "collision-20260501-232022",
+          "shape": "ellipse",
+          "cx": 632,
+          "cy": 309,
+          "rx": 33,
+          "ry": 12
+        },
+        {
+          "id": "collision-20260501-232030",
+          "shape": "ellipse",
+          "cx": 364,
+          "cy": 85,
+          "rx": 34,
+          "ry": 12
+        },
+        {
+          "id": "collision-20260501-232033",
+          "shape": "ellipse",
+          "cx": 779,
+          "cy": 108,
+          "rx": 36,
+          "ry": 11
+        },
+        {
+          "id": "collision-20260501-232037",
+          "shape": "ellipse",
+          "cx": 1463,
+          "cy": 434,
+          "rx": 30,
+          "ry": 11
+        },
+        {
+          "id": "collision-20260501-232040",
+          "shape": "ellipse",
+          "cx": 1383,
+          "cy": 114,
+          "rx": 36,
+          "ry": 9
+        },
+        {
+          "id": "collision-20260501-232046",
+          "shape": "ellipse",
+          "cx": 128,
+          "cy": 613,
+          "rx": 31,
+          "ry": 7
+        },
+        {
+          "id": "collision-20260501-232307",
+          "shape": "ellipse",
+          "cx": 613,
+          "cy": 631,
+          "rx": 19,
+          "ry": 77
+        },
+        {
+          "id": "collision-20260501-232311",
+          "shape": "ellipse",
+          "cx": 924,
+          "cy": 641,
+          "rx": 57,
+          "ry": 32
+        },
+        {
+          "id": "collision-20260501-232357",
+          "shape": "ellipse",
+          "cx": 284,
+          "cy": 257,
+          "rx": 4,
+          "ry": 4
+        },
+        {
+          "id": "collision-20260501-232358",
+          "shape": "ellipse",
+          "cx": 321,
+          "cy": 284,
+          "rx": 45,
+          "ry": 20
+        },
+        {
+          "id": "collision-20260501-232400",
+          "shape": "ellipse",
+          "cx": 496,
+          "cy": 275,
+          "rx": 73,
+          "ry": 51
+        },
+        {
+          "id": "collision-20260501-232413",
+          "shape": "ellipse",
+          "cx": 254,
+          "cy": 298,
+          "rx": 33,
+          "ry": 15
+        },
+        {
+          "id": "collision-20260501-232415",
+          "shape": "ellipse",
+          "cx": 162,
+          "cy": 66,
+          "rx": 4,
+          "ry": 4
+        },
+        {
+          "id": "collision-20260501-232424",
+          "shape": "ellipse",
+          "cx": 169,
+          "cy": 70,
+          "rx": 4,
+          "ry": 4
+        },
+        {
+          "id": "collision-20260501-232446",
+          "shape": "ellipse",
+          "cx": 520,
+          "cy": 305,
+          "rx": 49,
+          "ry": 30
+        },
+        {
+          "id": "collision-20260501-232506",
+          "shape": "ellipse",
+          "cx": 477,
+          "cy": 443,
+          "rx": 36,
+          "ry": 24
+        },
+        {
+          "id": "collision-20260501-232510",
+          "shape": "ellipse",
+          "cx": 260,
+          "cy": 433,
+          "rx": 52,
+          "ry": 24
+        },
+        {
+          "id": "collision-20260501-232651",
+          "shape": "ellipse",
+          "cx": 377,
+          "cy": 802,
+          "rx": 72,
+          "ry": 19
+        },
+        {
+          "id": "collision-20260501-232728",
+          "shape": "ellipse",
+          "cx": 784,
+          "cy": 527,
+          "rx": 33,
+          "ry": 28
+        },
+        {
+          "id": "collision-20260501-232732",
+          "shape": "ellipse",
+          "cx": 871,
+          "cy": 435,
+          "rx": 20,
+          "ry": 20
+        },
+        {
+          "id": "collision-20260501-232741",
+          "shape": "ellipse",
+          "cx": 874,
+          "cy": 300,
+          "rx": 26,
+          "ry": 20
+        },
+        {
+          "id": "collision-20260501-232745",
+          "shape": "ellipse",
+          "cx": 683,
+          "cy": 368,
+          "rx": 16,
+          "ry": 29
+        },
+        {
+          "id": "collision-20260501-232749",
+          "shape": "ellipse",
+          "cx": 624,
+          "cy": 754,
+          "rx": 21,
+          "ry": 14
+        },
+        {
+          "id": "collision-20260501-232752",
+          "shape": "ellipse",
+          "cx": 822,
+          "cy": 629,
+          "rx": 20,
+          "ry": 18
+        },
+        {
+          "id": "collision-20260501-232755",
+          "shape": "ellipse",
+          "cx": 919,
+          "cy": 698,
+          "rx": 22,
+          "ry": 15
+        },
+        {
+          "id": "collision-20260501-232758",
+          "shape": "ellipse",
+          "cx": 1525,
+          "cy": 549,
+          "rx": 19,
+          "ry": 15
+        },
+        {
+          "id": "collision-20260501-232800",
+          "shape": "ellipse",
+          "cx": 1161,
+          "cy": 829,
+          "rx": 17,
+          "ry": 12
+        },
+        {
+          "id": "collision-20260501-233003",
+          "shape": "ellipse",
+          "cx": 209,
+          "cy": 320,
+          "rx": 30,
+          "ry": 17
+        },
+        {
+          "id": "collision-20260502-001955",
+          "shape": "ellipse",
+          "cx": 412,
+          "cy": 232,
+          "rx": 60,
+          "ry": 55
+        },
+        {
+          "id": "collision-20260502-002017",
+          "shape": "ellipse",
+          "cx": 504,
+          "cy": 206,
+          "rx": 82,
+          "ry": 44
+        }
       ],
       "depthZones": [
-        { "id": "house-front-path", "x": 882, "y": 292, "width": 370, "height": 160 },
-        { "id": "house-front-path", "x": 132, "y": 160, "width": 80, "height": 80 }
+        {
+          "id": "house-front-path",
+          "x": 882,
+          "y": 292,
+          "width": 370,
+          "height": 160
+        },
+        {
+          "id": "house-front-path-2",
+          "x": 132,
+          "y": 160,
+          "width": 80,
+          "height": 80
+        },
+        {
+          "id": "depth-zone-20260501-232050",
+          "x": 84,
+          "y": 620,
+          "width": 112,
+          "height": 67
+        },
+        {
+          "id": "depth-zone-20260501-232052",
+          "x": 585,
+          "y": 311,
+          "width": 102,
+          "height": 66
+        },
+        {
+          "id": "depth-zone-20260501-232054",
+          "x": 740,
+          "y": 114,
+          "width": 75,
+          "height": 65
+        },
+        {
+          "id": "depth-zone-20260501-232056",
+          "x": 334,
+          "y": 101,
+          "width": 62,
+          "height": 47
+        },
+        {
+          "id": "depth-zone-20260501-232059",
+          "x": 1395,
+          "y": 444,
+          "width": 105,
+          "height": 90
+        },
+        {
+          "id": "depth-zone-20260501-232102",
+          "x": 1334,
+          "y": 121,
+          "width": 87,
+          "height": 56
+        }
       ],
       "hotspots": [
         {
@@ -69,7 +434,76 @@
           "targetScene": "inside",
           "actionLabel": "Enter House"
         }
-      ]
+      ],
+      "pigeons": [
+        {
+          "id": "yard-pigeon-1",
+          "x": 740,
+          "y": 662,
+          "scale": 3.3,
+          "wanderRadius": 58,
+          "flightPath": {
+            "end": {
+              "x": 150,
+              "y": 400
+            },
+            "arcHeight": 170,
+            "speed": 70
+          },
+          "timings": {
+            "offset": 0,
+            "idle": 4800,
+            "peck": 1400,
+            "walk": 2600,
+            "land": 900
+          }
+        },
+        {
+          "id": "yard-pigeon-2",
+          "x": 910,
+          "y": 898,
+          "scale": 2.9,
+          "wanderRadius": 48,
+          "flightPath": {
+            "end": {
+              "x": 690,
+              "y": 720
+            },
+            "arcHeight": 135,
+            "speed": 70
+          },
+          "timings": {
+            "offset": 2600,
+            "idle": 6300,
+            "peck": 1700,
+            "walk": 2300,
+            "land": 900
+          }
+        },
+        {
+          "id": "yard-pigeon-3",
+          "x": 1168,
+          "y": 414,
+          "scale": 2.7,
+          "wanderRadius": 44,
+          "flightPath": {
+            "end": {
+              "x": 1450,
+              "y": 700
+            },
+            "arcHeight": 100,
+            "speed": 70
+          },
+          "timings": {
+            "offset": 5200,
+            "idle": 5400,
+            "peck": 1200,
+            "walk": 2400,
+            "land": 800
+          }
+        }
+      ],
+      "walkableAreas": []
     },
     {
       "id": "inside",
@@ -80,15 +514,497 @@
         "y": 638
       },
       "collisions": [
-        { "id": "north-wall", "shape": "rect", "x": 0, "y": 0, "width": 1600, "height": 113 },
-        { "id": "west-wall", "shape": "rect", "x": 0, "y": 0, "width": 133, "height": 900 },
-        { "id": "east-wall", "shape": "rect", "x": 1467, "y": 0, "width": 133, "height": 900 },
-        { "id": "desk", "shape": "rect", "x": 320, "y": 188, "width": 347, "height": 165 },
-        { "id": "easel", "shape": "rect", "x": 1031, "y": 173, "width": 231, "height": 240 },
-        { "id": "bookcase", "shape": "rect", "x": 169, "y": 173, "width": 124, "height": 315 },
-        { "id": "rug-table", "shape": "rect", "x": 693, "y": 416, "width": 222, "height": 124 }
+        {
+          "id": "east-wall",
+          "shape": "rect",
+          "x": 1467,
+          "y": 0,
+          "width": 133,
+          "height": 900
+        },
+        {
+          "id": "collision-20260502-030040",
+          "shape": "rect",
+          "x": 707,
+          "y": 346,
+          "width": 308,
+          "height": 101
+        },
+        {
+          "id": "collision-20260502-030045",
+          "shape": "rect",
+          "x": 1013,
+          "y": 378,
+          "width": 26,
+          "height": 221
+        },
+        {
+          "id": "collision-20260502-030050",
+          "shape": "rect",
+          "x": 1034,
+          "y": 556,
+          "width": 94,
+          "height": 40
+        },
+        {
+          "id": "collision-20260502-030053",
+          "shape": "rect",
+          "x": 1198,
+          "y": 558,
+          "width": 131,
+          "height": 39
+        },
+        {
+          "id": "collision-20260502-030115",
+          "shape": "rect",
+          "x": 685,
+          "y": 35,
+          "width": 20,
+          "height": 405
+        },
+        {
+          "id": "collision-20260502-030119",
+          "shape": "rect",
+          "x": 707,
+          "y": 19,
+          "width": 395,
+          "height": 151
+        },
+        {
+          "id": "collision-20260502-030152",
+          "shape": "rect",
+          "x": 185,
+          "y": 428,
+          "width": 195,
+          "height": 105
+        },
+        {
+          "id": "collision-20260502-030155",
+          "shape": "rect",
+          "x": 195,
+          "y": 523,
+          "width": 160,
+          "height": 48
+        },
+        {
+          "id": "collision-20260502-030159",
+          "shape": "rect",
+          "x": 359,
+          "y": 492,
+          "width": 43,
+          "height": 40
+        },
+        {
+          "id": "collision-20260502-030253",
+          "shape": "ellipse",
+          "cx": 335,
+          "cy": 552,
+          "rx": 32,
+          "ry": 15
+        },
+        {
+          "id": "collision-20260502-040904",
+          "shape": "ellipse",
+          "cx": 675,
+          "cy": 643,
+          "rx": 60,
+          "ry": 29
+        },
+        {
+          "id": "collision-20260502-040915",
+          "shape": "ellipse",
+          "cx": 650,
+          "cy": 511,
+          "rx": 106,
+          "ry": 5
+        },
+        {
+          "id": "collision-20260502-041018",
+          "shape": "ellipse",
+          "cx": 753,
+          "cy": 541,
+          "rx": 27,
+          "ry": 22
+        },
+        {
+          "id": "collision-20260502-041144",
+          "shape": "ellipse",
+          "cx": 170,
+          "cy": 190,
+          "rx": 4,
+          "ry": 4
+        },
+        {
+          "id": "collision-20260502-041219",
+          "shape": "rect",
+          "x": 347,
+          "y": 683,
+          "width": 44,
+          "height": 14
+        },
+        {
+          "id": "collision-20260502-041222",
+          "shape": "rect",
+          "x": 295,
+          "y": 649,
+          "width": 23,
+          "height": 38
+        },
+        {
+          "id": "collision-20260502-041241",
+          "shape": "rect",
+          "x": 201,
+          "y": 575,
+          "width": 88,
+          "height": 108
+        },
+        {
+          "id": "collision-20260502-041253",
+          "shape": "ellipse",
+          "cx": 302,
+          "cy": 652,
+          "rx": 21,
+          "ry": 16
+        },
+        {
+          "id": "collision-20260502-041311",
+          "shape": "ellipse",
+          "cx": 414,
+          "cy": 843,
+          "rx": 81,
+          "ry": 50
+        },
+        {
+          "id": "collision-20260502-041321",
+          "shape": "ellipse",
+          "cx": 345,
+          "cy": 761,
+          "rx": 33,
+          "ry": 30
+        },
+        {
+          "id": "collision-20260502-041325",
+          "shape": "ellipse",
+          "cx": 383,
+          "cy": 824,
+          "rx": 64,
+          "ry": 67
+        },
+        {
+          "id": "collision-20260502-041337",
+          "shape": "ellipse",
+          "cx": 514,
+          "cy": 858,
+          "rx": 76,
+          "ry": 36
+        },
+        {
+          "id": "collision-20260502-041401",
+          "shape": "ellipse",
+          "cx": 546,
+          "cy": 186,
+          "rx": 132,
+          "ry": 42
+        },
+        {
+          "id": "collision-20260502-041406",
+          "shape": "ellipse",
+          "cx": 654,
+          "cy": 248,
+          "rx": 42,
+          "ry": 98
+        },
+        {
+          "id": "collision-20260502-041411",
+          "shape": "ellipse",
+          "cx": 398,
+          "cy": 219,
+          "rx": 67,
+          "ry": 61
+        },
+        {
+          "id": "collision-20260502-041430",
+          "shape": "ellipse",
+          "cx": 212,
+          "cy": 314,
+          "rx": 76,
+          "ry": 122
+        },
+        {
+          "id": "collision-20260502-041434",
+          "shape": "ellipse",
+          "cx": 262,
+          "cy": 241,
+          "rx": 62,
+          "ry": 99
+        },
+        {
+          "id": "collision-20260502-041438",
+          "shape": "ellipse",
+          "cx": 349,
+          "cy": 256,
+          "rx": 18,
+          "ry": 91
+        },
+        {
+          "id": "collision-20260502-041521",
+          "shape": "ellipse",
+          "cx": 1148,
+          "cy": 116,
+          "rx": 73,
+          "ry": 115
+        },
+        {
+          "id": "collision-20260502-041526",
+          "shape": "ellipse",
+          "cx": 1253,
+          "cy": 190,
+          "rx": 70,
+          "ry": 112
+        },
+        {
+          "id": "collision-20260502-041529",
+          "shape": "ellipse",
+          "cx": 1313,
+          "cy": 258,
+          "rx": 65,
+          "ry": 106
+        },
+        {
+          "id": "collision-20260502-041533",
+          "shape": "ellipse",
+          "cx": 1197,
+          "cy": 406,
+          "rx": 104,
+          "ry": 30
+        },
+        {
+          "id": "collision-20260502-041547",
+          "shape": "ellipse",
+          "cx": 1153,
+          "cy": 308,
+          "rx": 36,
+          "ry": 14
+        },
+        {
+          "id": "collision-20260502-041732",
+          "shape": "ellipse",
+          "cx": 1168,
+          "cy": 472,
+          "rx": 24,
+          "ry": 16
+        },
+        {
+          "id": "collision-20260502-041859",
+          "shape": "rect",
+          "x": 1224,
+          "y": 373,
+          "width": 98,
+          "height": 128
+        },
+        {
+          "id": "collision-20260502-041921",
+          "shape": "rect",
+          "x": 1345,
+          "y": 318,
+          "width": 62,
+          "height": 236
+        },
+        {
+          "id": "collision-20260502-041944",
+          "shape": "rect",
+          "x": 1054,
+          "y": 200,
+          "width": 53,
+          "height": 35
+        },
+        {
+          "id": "collision-20260502-041946",
+          "shape": "rect",
+          "x": 965,
+          "y": 168,
+          "width": 86,
+          "height": 17
+        },
+        {
+          "id": "collision-20260502-041950",
+          "shape": "rect",
+          "x": 738,
+          "y": 168,
+          "width": 33,
+          "height": 47
+        },
+        {
+          "id": "collision-20260502-042032",
+          "shape": "rect",
+          "x": 800,
+          "y": 232,
+          "width": 13,
+          "height": 51
+        },
+        {
+          "id": "collision-20260502-042034",
+          "shape": "rect",
+          "x": 945,
+          "y": 248,
+          "width": 14,
+          "height": 36
+        },
+        {
+          "id": "collision-20260502-042036",
+          "shape": "rect",
+          "x": 816,
+          "y": 250,
+          "width": 142,
+          "height": 12
+        },
+        {
+          "id": "collision-20260502-042051",
+          "shape": "rect",
+          "x": 435,
+          "y": 36,
+          "width": 8,
+          "height": 8
+        }
       ],
-      "depthZones": [],
+      "walkableAreas": [
+        {
+          "id": "house-floor",
+          "shape": "ellipse",
+          "cx": 771,
+          "cy": 433,
+          "rx": 584,
+          "ry": 400
+        }
+      ],
+      "depthZones": [
+        {
+          "id": "depth-zone-20260502-040853",
+          "x": 514,
+          "y": 530,
+          "width": 304,
+          "height": 78
+        },
+        {
+          "id": "depth-zone-20260502-040856",
+          "x": 607,
+          "y": 646,
+          "width": 144,
+          "height": 127
+        },
+        {
+          "id": "depth-zone-20260502-040937",
+          "x": 521,
+          "y": 570,
+          "width": 51,
+          "height": 122
+        },
+        {
+          "id": "depth-zone-20260502-040939",
+          "x": 787,
+          "y": 560,
+          "width": 43,
+          "height": 110
+        },
+        {
+          "id": "depth-zone-20260502-041200",
+          "x": 364,
+          "y": 541,
+          "width": 87,
+          "height": 30
+        },
+        {
+          "id": "depth-zone-20260502-041207",
+          "x": 220,
+          "y": 562,
+          "width": 223,
+          "height": 54
+        },
+        {
+          "id": "depth-zone-20260502-041211",
+          "x": 265,
+          "y": 689,
+          "width": 140,
+          "height": 56
+        },
+        {
+          "id": "depth-zone-20260502-041349",
+          "x": 682,
+          "y": 786,
+          "width": 309,
+          "height": 92
+        },
+        {
+          "id": "depth-zone-20260502-041445",
+          "x": 277,
+          "y": 224,
+          "width": 413,
+          "height": 150
+        },
+        {
+          "id": "depth-zone-20260502-041500",
+          "x": 122,
+          "y": 334,
+          "width": 263,
+          "height": 98
+        },
+        {
+          "id": "depth-zone-20260502-041603",
+          "x": 1074,
+          "y": 319,
+          "width": 145,
+          "height": 49
+        },
+        {
+          "id": "depth-zone-20260502-041704",
+          "x": 1066,
+          "y": 413,
+          "width": 56,
+          "height": 115
+        },
+        {
+          "id": "depth-zone-20260502-041705",
+          "x": 1127,
+          "y": 485,
+          "width": 71,
+          "height": 41
+        },
+        {
+          "id": "depth-zone-20260502-041707",
+          "x": 1212,
+          "y": 482,
+          "width": 126,
+          "height": 63
+        },
+        {
+          "id": "depth-zone-20260502-041709",
+          "x": 1089,
+          "y": 398,
+          "width": 152,
+          "height": 47
+        },
+        {
+          "id": "depth-zone-20260502-041938",
+          "x": 974,
+          "y": 188,
+          "width": 127,
+          "height": 110
+        },
+        {
+          "id": "depth-zone-20260502-041940",
+          "x": 724,
+          "y": 158,
+          "width": 49,
+          "height": 101
+        },
+        {
+          "id": "depth-zone-20260502-042020",
+          "x": 763,
+          "y": 150,
+          "width": 207,
+          "height": 163
+        }
+      ],
       "hotspots": [
         {
           "id": "desk",

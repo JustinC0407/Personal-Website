@@ -69,14 +69,36 @@ export type Hotspot = Rect & {
   actionLabel: string;
 };
 
+export type PigeonConfig = {
+  id: string;
+  x: number;
+  y: number;
+  scale: number;
+  wanderRadius: number;
+  flightPath: {
+    end: { x: number; y: number };
+    arcHeight: number;
+    speed: number;
+  };
+  timings: {
+    offset: number;
+    idle: number;
+    peck: number;
+    walk: number;
+    land: number;
+  };
+};
+
 export type WorldScene = {
   id: string;
   name: string;
   background: string;
   spawn: { x: number; y: number };
   collisions: CollisionShape[];
+  walkableAreas?: CollisionShape[];
   depthZones: Rect[];
   hotspots: Hotspot[];
+  pigeons?: PigeonConfig[];
 };
 
 export type WorldData = {

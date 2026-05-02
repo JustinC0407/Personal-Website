@@ -218,6 +218,23 @@ button:focus-visible {
   transform-origin: center;
 }
 
+.world-house-glow {
+  opacity: 0.45;
+  will-change: opacity;
+  animation: world-house-glow-pulse 3.8s ease-in-out infinite;
+}
+
+@keyframes world-house-glow-pulse {
+  0%,
+  100% {
+    opacity: 0;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
 @keyframes world-petal-fall {
   0% {
     transform: translate3d(0, var(--petal-start-y), 0);
@@ -277,6 +294,10 @@ button:focus-visible {
 
   .world-petals-layer {
     display: none;
+  }
+
+  .world-house-glow {
+    opacity: 0.32;
   }
 
   *,
