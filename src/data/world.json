@@ -1037,6 +1037,10 @@
           "width": 196,
           "height": 113,
           "targetScene": "outside",
+          "targetSpawn": {
+            "x": 1051,
+            "y": 348
+          },
           "actionLabel": "Exit House"
         }
       ]

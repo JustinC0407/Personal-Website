@@ -145,6 +145,8 @@ const WALK_FRAME_SEQUENCE = ["stand", "2", "stand", "4"] as const;
 const WALK_FRAME_DURATION_MS = 140;
 const PETAL_COUNT = 16;
 const MIN_EDITOR_SHAPE_SIZE = 8;
+const WORLD_TRANSITION_FADE_MS = 180;
+const WORLD_TRANSITION_HOLD_MS = 120;
 
 const drawerItems = [
   { id: "about", label: "About + Skills", icon: UserRound },
@@ -624,6 +626,8 @@ export function WorldScene({ data }: WorldSceneProps) {
   const dragOriginRef = useRef<Point | null>(null);
   const lastFrameRef = useRef<number | null>(null);
   const animationElapsedRef = useRef(0);
+  const transitionTimeoutsRef = useRef<number[]>([]);
+  const transitionActiveRef = useRef(true);
   const [viewport, setViewport] = useState({ width: 1280, height: 720 });
   const [debug, setDebug] = useState(false);
   const [editorLayer, setEditorLayer] = useState<EditorLayer>("collisions");
@@ -642,6 +646,8 @@ export function WorldScene({ data }: WorldSceneProps) {
   const walkFrameIndexRef = useRef(0);
   const [detectedControlMode, setDetectedControlMode] = useState<ControlMode>("laptop");
   const [controlModeOverride, setControlModeOverride] = useState<ControlMode | null>(null);
+  const [transitionActive, setTransitionActive] = useState(true);
+  const [transitionCovered, setTransitionCovered] = useState(true);
   const controlMode = controlModeOverride ?? detectedControlMode;
   const isMobileTestView = SHOW_CONTROL_MODE_TOGGLE && controlModeOverride === "mobile";
   const effectiveViewport = isMobileTestView
@@ -708,21 +714,59 @@ export function WorldScene({ data }: WorldSceneProps) {
     }
   }, []);
 
+  const clearTransitionTimeouts = useCallback(() => {
+    transitionTimeoutsRef.current.forEach((timeout) => window.clearTimeout(timeout));
+    transitionTimeoutsRef.current = [];
+  }, []);
+
+  const setTransitionActiveState = useCallback((nextActive: boolean) => {
+    transitionActiveRef.current = nextActive;
+    setTransitionActive(nextActive);
+  }, []);
+
   const setScene = useCallback(
-    (nextSceneId: string) => {
+    (nextSceneId: string, targetSpawn?: Point) => {
       const nextScene = worldData.scenes.find((item) => item.id === nextSceneId);
       if (!nextScene) {
         return;
       }
 
-      positionRef.current = nextScene.spawn;
-      setPosition(nextScene.spawn);
-      setSceneId(nextScene.id);
-      setActiveModal(null);
+      const nextPosition = targetSpawn ?? nextScene.spawn;
+
+      clearTransitionTimeouts();
+      keysRef.current = emptyKeys;
+      keyOrderRef.current = emptyKeyOrder;
+      keyOrderCounterRef.current = 0;
+      dragRef.current = null;
+      dragOriginRef.current = null;
       setMovingState(false);
       resetWalkAnimation();
+
+      setTransitionActiveState(true);
+      setTransitionCovered(true);
+
+      const swapTimeout = window.setTimeout(() => {
+        positionRef.current = nextPosition;
+        setPosition(nextPosition);
+        setSceneId(nextScene.id);
+        setActiveModal(null);
+
+        const revealTimeout = window.setTimeout(() => {
+          setTransitionCovered(false);
+
+          const doneTimeout = window.setTimeout(() => {
+            setTransitionActiveState(false);
+          }, WORLD_TRANSITION_FADE_MS);
+
+          transitionTimeoutsRef.current.push(doneTimeout);
+        }, WORLD_TRANSITION_HOLD_MS);
+
+        transitionTimeoutsRef.current.push(revealTimeout);
+      }, WORLD_TRANSITION_FADE_MS);
+
+      transitionTimeoutsRef.current.push(swapTimeout);
     },
-    [resetWalkAnimation, setMovingState, worldData.scenes]
+    [clearTransitionTimeouts, resetWalkAnimation, setMovingState, setTransitionActiveState, worldData.scenes]
   );
 
   const tryMove = useCallback(
@@ -742,7 +786,7 @@ export function WorldScene({ data }: WorldSceneProps) {
   const activateHotspot = useCallback(
     (hotspot: Hotspot) => {
       if (hotspot.targetScene) {
-        setScene(hotspot.targetScene);
+        setScene(hotspot.targetScene, hotspot.targetSpawn);
         return;
       }
 
@@ -762,6 +806,22 @@ export function WorldScene({ data }: WorldSceneProps) {
     window.addEventListener("resize", syncViewport);
     return () => window.removeEventListener("resize", syncViewport);
   }, []);
+
+  useEffect(() => {
+    const revealTimeout = window.setTimeout(() => {
+      setTransitionCovered(false);
+
+      const doneTimeout = window.setTimeout(() => {
+        setTransitionActiveState(false);
+      }, WORLD_TRANSITION_FADE_MS);
+
+      transitionTimeoutsRef.current.push(doneTimeout);
+    }, WORLD_TRANSITION_HOLD_MS);
+
+    transitionTimeoutsRef.current.push(revealTimeout);
+
+    return clearTransitionTimeouts;
+  }, [clearTransitionTimeouts, setTransitionActiveState]);
 
   useEffect(() => {
     const coarsePointer = window.matchMedia("(pointer: coarse)");
@@ -798,7 +858,7 @@ export function WorldScene({ data }: WorldSceneProps) {
         return;
       }
 
-      if (direction && controlMode === "laptop" && !debug) {
+      if (direction && controlMode === "laptop" && !debug && !transitionActive) {
         const next = { ...keysRef.current, [direction]: pressed };
         event.preventDefault();
 
@@ -810,7 +870,7 @@ export function WorldScene({ data }: WorldSceneProps) {
         keysRef.current = next;
       }
 
-      if (pressed && !debug && (key === "e" || key === "enter") && nearbyHotspot) {
+      if (pressed && !debug && !transitionActive && (key === "e" || key === "enter") && nearbyHotspot) {
         event.preventDefault();
         activateHotspot(nearbyHotspot);
       }
@@ -830,7 +890,7 @@ export function WorldScene({ data }: WorldSceneProps) {
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
     };
-  }, [activateHotspot, controlMode, debug, editorSelection, nearbyHotspot, scene.id]);
+  }, [activateHotspot, controlMode, debug, editorSelection, nearbyHotspot, scene.id, transitionActive]);
 
   useEffect(() => {
     keysRef.current = emptyKeys;
@@ -850,7 +910,7 @@ export function WorldScene({ data }: WorldSceneProps) {
       const deltaSeconds = Math.min((time - last) / 1000, 0.05);
       lastFrameRef.current = time;
 
-      if (!activeModal && !drawerOpen && !debug) {
+      if (!activeModal && !drawerOpen && !debug && !transitionActiveRef.current) {
         const keys = controlMode === "laptop" ? keysRef.current : emptyKeys;
         let dx = Number(keys.right) - Number(keys.left);
         let dy = Number(keys.down) - Number(keys.up);
@@ -915,7 +975,7 @@ export function WorldScene({ data }: WorldSceneProps) {
   }, [activeModal, controlMode, debug, drawerOpen, resetWalkAnimation, setFacingState, setMovingState, tryMove]);
 
   function beginDrag(event: React.PointerEvent<HTMLDivElement>) {
-    if (debug || controlMode !== "mobile" || event.pointerType === "mouse") {
+    if (debug || transitionActive || controlMode !== "mobile" || event.pointerType === "mouse") {
       return;
     }
 
@@ -927,7 +987,7 @@ export function WorldScene({ data }: WorldSceneProps) {
   }
 
   function updateDrag(event: React.PointerEvent<HTMLDivElement>) {
-    if (debug || controlMode !== "mobile" || event.pointerType === "mouse" || !event.currentTarget.hasPointerCapture(event.pointerId)) {
+    if (debug || transitionActive || controlMode !== "mobile" || event.pointerType === "mouse" || !event.currentTarget.hasPointerCapture(event.pointerId)) {
       return;
     }
 
@@ -1042,7 +1102,7 @@ export function WorldScene({ data }: WorldSceneProps) {
           <button
             aria-label={hotspot.label}
             className="absolute z-20 border-4 border-transparent bg-transparent transition focus-visible:border-wheat disabled:pointer-events-none"
-            disabled={debug}
+            disabled={debug || transitionActive}
             key={hotspot.id}
             onClick={(event) => {
               event.stopPropagation();
@@ -1086,13 +1146,16 @@ export function WorldScene({ data }: WorldSceneProps) {
         </div>
         {!playerInDepthZone ? <SceneForegroundOverlay scene={scene} /> : null}
       </div>
+        {transitionActive ? (
+          <div aria-hidden className={`world-transition-overlay ${transitionCovered ? "world-transition-overlay-covered" : ""}`} />
+        ) : null}
       </div>
 
       <GameHud
         debug={debug}
         drawerOpen={drawerOpen}
         nearbyHotspot={nearbyHotspot}
-        onActivateHotspot={() => nearbyHotspot && activateHotspot(nearbyHotspot)}
+        onActivateHotspot={() => nearbyHotspot && !transitionActive && activateHotspot(nearbyHotspot)}
         onCloseDrawer={() => setDrawerOpen(false)}
         onOpenDrawer={() => setDrawerOpen(true)}
         onOpenModal={(type) => {
@@ -1601,11 +1664,21 @@ function SceneForegroundOverlay({ scene, behindPlayer = false }: { scene: Scene;
         />
         <Image
           alt=""
-          className="world-house-glow absolute inset-0 h-full w-full select-none object-fill"
+          className="world-house-glow world-house-glow-table absolute inset-0 h-full w-full select-none object-fill"
           draggable={false}
           fill
           priority
-          src="/art/world_house_backgroud_ontop_glow.png"
+          src="/art/world_house_backgroud_ontop_glow_table.png"
+          style={{ imageRendering: "pixelated" }}
+          unoptimized
+        />
+        <Image
+          alt=""
+          className="world-house-glow world-house-glow-art absolute inset-0 h-full w-full select-none object-fill"
+          draggable={false}
+          fill
+          priority
+          src="/art/world_house_backgroud_ontop_glow_art.png"
           style={{ imageRendering: "pixelated" }}
           unoptimized
         />

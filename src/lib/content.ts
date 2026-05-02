@@ -66,6 +66,7 @@ export type Hotspot = Rect & {
   targetRoute?: string;
   secondaryRoute?: string;
   targetScene?: string;
+  targetSpawn?: { x: number; y: number };
   actionLabel: string;
 };
 

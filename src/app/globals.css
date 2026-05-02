@@ -198,6 +198,21 @@ button:focus-visible {
   transform: translateY(-2px);
 }
 
+.world-transition-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 80;
+  pointer-events: auto;
+  opacity: 0;
+  background: #1d1519;
+  image-rendering: pixelated;
+  transition: opacity 180ms steps(5, end);
+}
+
+.world-transition-overlay-covered {
+  opacity: 1;
+}
+
 .world-petals-layer {
   pointer-events: none;
 }
@@ -219,9 +234,22 @@ button:focus-visible {
 }
 
 .world-house-glow {
-  opacity: 0.45;
+  opacity: 0;
   will-change: opacity;
-  animation: world-house-glow-pulse 3.8s ease-in-out infinite;
+  animation: world-house-glow-pulse var(--world-house-glow-duration, 3.8s) ease-in-out infinite;
+  animation-delay: var(--world-house-glow-delay, 0s);
+}
+
+.world-house-glow-table {
+  --world-house-glow-duration: 4.4s;
+  --world-house-glow-delay: 0s;
+  --world-house-glow-peak: 0.5;
+}
+
+.world-house-glow-art {
+  --world-house-glow-duration: 4.4s;
+  --world-house-glow-delay: 2.2s;
+  --world-house-glow-peak: 0.44;
 }
 
 @keyframes world-house-glow-pulse {
@@ -231,7 +259,7 @@ button:focus-visible {
   }
 
   50% {
-    opacity: 0.5;
+    opacity: var(--world-house-glow-peak, 0.5);
   }
 }
 

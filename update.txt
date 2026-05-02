@@ -40,10 +40,19 @@ Completed work
 - Fixed extension-caused hydration warning on the root body.
 - Fixed modal scrolling so content scrolls below the header instead of sliding behind it.
 - Fixed the homepage height after navbar removal so the global background grid no longer shows at the bottom.
+- Added inside-house glow affordances for the desk/computer and easel using separate glow art layers:
+  - world_house_backgroud_ontop_glow_table.png for the projects/table object.
+  - world_house_backgroud_ontop_glow_art.png for the creative/easel object.
+- Staggered the two inside-house glow animations with separate CSS timing variables so the clickable objects read as distinct interactions.
+- Added optional hotspot targetSpawn support so scene transitions can place the player at a specific destination instead of always using the target scene's default spawn.
+- Updated the inside-house exit hotspot so exiting the house spawns the player outside near the house door.
+- Added a simple dark stepped fade transition for entering /world and for house enter/exit scene changes.
+- Blocked movement and hotspot activation while the world transition is active so players do not interact during scene swaps.
+- Tried a player-centered circle reveal transition, then removed it and restored the simpler dark fade because it did not fit the desired feel.
 
 Recent verification
-- npm run lint passed after the sprite, world-art, collision-shape, and depth-zone updates.
-- npm run typecheck passed after the sprite, world-art, collision-shape, and depth-zone updates.
+- npm run lint passed after the inside glow, target spawn, and world transition updates.
+- npm run typecheck passed after the inside glow, target spawn, and world transition updates.
 - Production build was previously verified before the latest small UI tweaks, but the user asked not to run build every time.
 
 Still to do
